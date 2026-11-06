@@ -35,14 +35,16 @@ export default {
 
           if (request.method === 'POST') {
             const body = await request.json();
+            const pId = body.player_id || body.playerId;
             
-            // Insert user into D1 SQL Table
+            // Insert user into D1 SQL Table mapping both player_id and playerId
             await env.DB.prepare(`
-              INSERT INTO users (id, playerId, name, whatsapp, password, role, grade, elo, avatar, membershipStatus, duesOwed, matchesPlayed, wins)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              INSERT INTO users (id, player_id, playerId, name, whatsapp, password, role, grade, elo, avatar, membershipStatus, duesOwed, matchesPlayed, wins)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).bind(
               body.id,
-              body.playerId,
+              pId,
+              pId,
               body.name,
               body.whatsapp,
               body.password || '',
@@ -57,29 +59,9 @@ export default {
             ).run();
 
             return new Response(
-              JSON.stringify({ success: true, message: 'User written to D1', playerId: body.playerId }),
+              JSON.stringify({ success: true, message: 'User written to D1', playerId: pId }),
               { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
-          }
-        }
-
-        // --- COURTS API ENDPOINTS ---
-        if (url.pathname === '/api/courts') {
-          if (request.method === 'GET') {
-            const { results } = await env.DB.prepare("SELECT * FROM courts").all();
-            return new Response(JSON.stringify(results || []), {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            });
-          }
-        }
-
-        // --- BOOKINGS API ENDPOINTS ---
-        if (url.pathname === '/api/bookings') {
-          if (request.method === 'GET') {
-            const { results } = await env.DB.prepare("SELECT * FROM bookings ORDER BY id DESC").all();
-            return new Response(JSON.stringify(results || []), {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            });
           }
 
           if (request.method === 'POST') {
