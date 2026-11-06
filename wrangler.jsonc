@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "smash-hub",
+  "compatibility_date": "2026-11-04",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "smashhub-db",
+      "database_id": "e931ae7b-bf0b-4a6a-8eb1-817b85b0bfa4"
+    }
+  ]
+}
