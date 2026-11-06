@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "smash-hub",
+  "main": "src/worker.js",
   "compatibility_date": "2026-11-04",
   "observability": {
     "enabled": true
