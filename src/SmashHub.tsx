@@ -2,25 +2,25 @@ import React, { useState } from 'react';
 import { 
   Activity, Trophy, Calendar, Users, CreditCard, Zap, 
   CheckCircle2, BarChart3, ShieldCheck, LogOut, UserCheck, 
-  Shuffle, ChevronRight, Check, X, Flame
+  Shuffle, ChevronRight, Check, X, Flame, Lock, Phone, User as UserIcon, Key
 } from 'lucide-react';
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, AreaChart, Area 
 } from 'recharts';
 
 // --- TYPES & INTERFACES ---
-type UserRole = 'SUPER_ADMIN' | 'COACH' | 'PLAYER';
+type UserRole = 'SUPER_ADMIN' | 'MEMBER' | 'PLAYER';
 type SkillGrade = 'S (Pro)' | 'A (Advanced)' | 'B (Upper Inter)' | 'C (Intermediate)' | 'D (Beginner)';
 
 interface User {
   id: string;
+  playerId: string; // Unique running player login key e.g. "SH-1001"
   name: string;
-  email: string;
+  whatsapp: string;
   role: UserRole;
   grade: SkillGrade;
   elo: number;
   avatar: string;
-  phone: string;
   membershipStatus: 'Active' | 'Pending' | 'Expired';
   duesOwed: number;
   matchesPlayed: number;
@@ -41,9 +41,10 @@ interface Booking {
   courtId: number;
   courtName: string;
   playerName: string;
+  playerId: string;
   date: string;
   timeSlot: string;
-  type: 'Casual Play' | 'Tournament' | 'Coaching Session';
+  type: 'Casual Play' | 'Tournament' | 'Training Session';
   paymentStatus: 'Paid' | 'Unpaid';
   fee: number;
 }
@@ -65,6 +66,7 @@ interface Match {
 interface Invoice {
   id: string;
   playerName: string;
+  playerId: string;
   description: string;
   amount: number;
   dueDate: string;
@@ -72,18 +74,20 @@ interface Invoice {
   paymentMethod?: string;
 }
 
-// --- MOCK INITIAL DATA ---
+// Secret Code required to register as Super Admin
+const SECRET_ADMIN_CODE = 'SMASH2026ADMIN';
+
+// --- INITIAL MOCK DATA ---
 const INITIAL_USERS: User[] = [
-  { id: 'u-admin', name: 'Alex Vance (Super Admin)', email: 'admin@smashhub.club', role: 'SUPER_ADMIN', grade: 'S (Pro)', elo: 2150, avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', phone: '+1 555-0192', membershipStatus: 'Active', duesOwed: 0, matchesPlayed: 142, wins: 118 },
-  { id: 'u-coach', name: 'Coach Marcus Chen', email: 'coach@smashhub.club', role: 'COACH', grade: 'S (Pro)', elo: 2020, avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', phone: '+1 555-0144', membershipStatus: 'Active', duesOwed: 0, matchesPlayed: 98, wins: 76 },
-  { id: 'u-1', name: 'Samantha Reed', email: 'sam@smashhub.club', role: 'PLAYER', grade: 'A (Advanced)', elo: 1820, avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', phone: '+1 555-0831', membershipStatus: 'Active', duesOwed: 0, matchesPlayed: 64, wins: 42 },
-  { id: 'u-2', name: 'David Kim', email: 'david@smashhub.club', role: 'PLAYER', grade: 'B (Upper Inter)', elo: 1640, avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150', phone: '+1 555-0322', membershipStatus: 'Active', duesOwed: 25, matchesPlayed: 50, wins: 29 },
-  { id: 'u-3', name: 'Elena Rostova', email: 'elena@smashhub.club', role: 'PLAYER', grade: 'C (Intermediate)', elo: 1410, avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150', phone: '+1 555-0911', membershipStatus: 'Pending', duesOwed: 50, matchesPlayed: 28, wins: 13 },
-  { id: 'u-4', name: 'Jordan Taylor', email: 'jordan@smashhub.club', role: 'PLAYER', grade: 'D (Beginner)', elo: 1190, avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150', phone: '+1 555-0762', membershipStatus: 'Active', duesOwed: 0, matchesPlayed: 12, wins: 4 },
+  { id: 'u-101', playerId: 'SH-1001', name: 'Alex Vance', whatsapp: '+6281234567890', role: 'SUPER_ADMIN', grade: 'S (Pro)', elo: 2150, avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', membershipStatus: 'Active', duesOwed: 0, matchesPlayed: 142, wins: 118 },
+  { id: 'u-102', playerId: 'SH-1002', name: 'Samantha Reed', whatsapp: '+6281987654321', role: 'MEMBER', grade: 'A (Advanced)', elo: 1820, avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', membershipStatus: 'Active', duesOwed: 0, matchesPlayed: 64, wins: 42 },
+  { id: 'u-103', playerId: 'SH-1003', name: 'David Kim', whatsapp: '+6281122334455', role: 'PLAYER', grade: 'B (Upper Inter)', elo: 1640, avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150', membershipStatus: 'Active', duesOwed: 25, matchesPlayed: 50, wins: 29 },
+  { id: 'u-104', playerId: 'SH-1004', name: 'Elena Rostova', whatsapp: '+6285566778899', role: 'MEMBER', grade: 'C (Intermediate)', elo: 1410, avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150', membershipStatus: 'Pending', duesOwed: 50, matchesPlayed: 28, wins: 13 },
+  { id: 'u-105', playerId: 'SH-1005', name: 'Jordan Taylor', whatsapp: '+6287788990011', role: 'PLAYER', grade: 'D (Beginner)', elo: 1190, avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150', membershipStatus: 'Active', duesOwed: 0, matchesPlayed: 12, wins: 4 },
 ];
 
 const INITIAL_COURTS: Court[] = [
-  { id: 1, name: 'Court 1 - Center Court', type: 'Synthetic Wooden', status: 'Occupied', currentMatchId: 'm-101', lighting: 'LED Pro 500 Lux' },
+  { id: 1, name: 'Court 1 - Center Arena', type: 'Synthetic Wooden', status: 'Occupied', currentMatchId: 'm-101', lighting: 'LED Pro 500 Lux' },
   { id: 2, name: 'Court 2 - Yonex Mat', type: 'Standard Mat', status: 'Occupied', currentMatchId: 'm-102', lighting: 'LED Pro 500 Lux' },
   { id: 3, name: 'Court 3 - Victor Arena', type: 'Synthetic Wooden', status: 'Available', lighting: 'Standard 300 Lux' },
   { id: 4, name: 'Court 4 - Li-Ning Court', type: 'Standard Mat', status: 'Available', lighting: 'Standard 300 Lux' },
@@ -92,22 +96,22 @@ const INITIAL_COURTS: Court[] = [
 ];
 
 const INITIAL_MATCHES: Match[] = [
-  { id: 'm-101', courtId: 1, team1: ['Alex Vance (Super Admin)', 'Samantha Reed'], team2: ['Coach Marcus Chen', 'David Kim'], score1: [21, 19, 14], score2: [18, 21, 12], currentSet: 3, status: 'Live', serverTeam: 1, startTime: '18:30' },
-  { id: 'm-102', courtId: 2, team1: ['Elena Rostova'], team2: ['Jordan Taylor'], score1: [21], score2: [15], currentSet: 1, status: 'Live', serverTeam: 2, startTime: '19:00' }
+  { id: 'm-101', courtId: 1, team1: ['Alex Vance (SH-1001)', 'Samantha Reed (SH-1002)'], team2: ['David Kim (SH-1003)', 'Elena Rostova (SH-1004)'], score1: [21, 19, 14], score2: [18, 21, 12], currentSet: 3, status: 'Live', serverTeam: 1, startTime: '18:30' },
+  { id: 'm-102', courtId: 2, team1: ['Jordan Taylor (SH-1005)'], team2: ['David Kim (SH-1003)'], score1: [21], score2: [15], currentSet: 1, status: 'Live', serverTeam: 2, startTime: '19:00' }
 ];
 
 const INITIAL_BOOKINGS: Booking[] = [
-  { id: 'bk-1', courtId: 1, courtName: 'Court 1 - Center Court', playerName: 'Alex Vance', date: '2026-11-06', timeSlot: '18:00 - 20:00', type: 'Tournament', paymentStatus: 'Paid', fee: 40 },
-  { id: 'bk-2', courtId: 2, courtName: 'Court 2 - Yonex Mat', playerName: 'Elena Rostova', date: '2026-11-06', timeSlot: '19:00 - 20:00', type: 'Casual Play', paymentStatus: 'Paid', fee: 20 },
-  { id: 'bk-3', courtId: 3, courtName: 'Court 3 - Victor Arena', playerName: 'Coach Marcus Chen', date: '2026-11-06', timeSlot: '20:00 - 21:00', type: 'Coaching Session', paymentStatus: 'Paid', fee: 30 },
-  { id: 'bk-4', courtId: 4, courtName: 'Court 4 - Li-Ning Court', playerName: 'David Kim', date: '2026-11-07', timeSlot: '17:00 - 19:00', type: 'Casual Play', paymentStatus: 'Unpaid', fee: 35 },
+  { id: 'bk-1', courtId: 1, courtName: 'Court 1 - Center Arena', playerName: 'Alex Vance', playerId: 'SH-1001', date: '2026-11-06', timeSlot: '18:00 - 20:00', type: 'Tournament', paymentStatus: 'Paid', fee: 40 },
+  { id: 'bk-2', courtId: 2, courtName: 'Court 2 - Yonex Mat', playerName: 'Elena Rostova', playerId: 'SH-1004', date: '2026-11-06', timeSlot: '19:00 - 20:00', type: 'Casual Play', paymentStatus: 'Paid', fee: 20 },
+  { id: 'bk-3', courtId: 3, courtName: 'Court 3 - Victor Arena', playerName: 'Samantha Reed', playerId: 'SH-1002', date: '2026-11-06', timeSlot: '20:00 - 21:00', type: 'Training Session', paymentStatus: 'Paid', fee: 30 },
+  { id: 'bk-4', courtId: 4, courtName: 'Court 4 - Li-Ning Court', playerName: 'David Kim', playerId: 'SH-1003', date: '2026-11-07', timeSlot: '17:00 - 19:00', type: 'Casual Play', paymentStatus: 'Unpaid', fee: 35 },
 ];
 
 const INITIAL_INVOICES: Invoice[] = [
-  { id: 'INV-2026-001', playerName: 'David Kim', description: 'November Club Membership & Shuttle Fee', amount: 65, dueDate: '2026-11-15', status: 'Pending' },
-  { id: 'INV-2026-002', playerName: 'Elena Rostova', description: 'Court Booking #bk-2 & Stringing Service', amount: 50, dueDate: '2026-11-10', status: 'Pending' },
-  { id: 'INV-2026-003', playerName: 'Samantha Reed', description: 'Quarterly Tournament Entry Fee', amount: 35, dueDate: '2026-11-01', status: 'Paid', paymentMethod: 'Stripe Credit Card' },
-  { id: 'INV-2026-004', playerName: 'Jordan Taylor', description: 'Beginner Coaching Package (4 Sessions)', amount: 120, dueDate: '2026-10-28', status: 'Overdue' },
+  { id: 'INV-2026-001', playerName: 'David Kim', playerId: 'SH-1003', description: 'November Club Membership & Shuttle Fee', amount: 65, dueDate: '2026-11-15', status: 'Pending' },
+  { id: 'INV-2026-002', playerName: 'Elena Rostova', playerId: 'SH-1004', description: 'Court Booking #bk-2 & Stringing Service', amount: 50, dueDate: '2026-11-10', status: 'Pending' },
+  { id: 'INV-2026-003', playerName: 'Samantha Reed', playerId: 'SH-1002', description: 'Quarterly Tournament Entry Fee', amount: 35, dueDate: '2026-11-01', status: 'Paid', paymentMethod: 'Stripe Credit Card' },
+  { id: 'INV-2026-004', playerName: 'Jordan Taylor', playerId: 'SH-1005', description: 'Beginner Coaching Package', amount: 120, dueDate: '2026-10-28', status: 'Overdue' },
 ];
 
 // Recharts Trend Data
@@ -134,10 +138,10 @@ const REVENUE_DATA = [
 
 // --- MAIN APP COMPONENT ---
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<User | null>(INITIAL_USERS[0]); // Default to Super Admin
+  const [currentUser, setCurrentUser] = useState<User | null>(null); // Default Guest
   const [activeTab, setActiveTab] = useState<'dashboard' | 'booking' | 'scoring' | 'matchmaker' | 'grading' | 'billing'>('dashboard');
   
-  // App state
+  // App State
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [courts, setCourts] = useState<Court[]>(INITIAL_COURTS);
   const [matches, setMatches] = useState<Match[]>(INITIAL_MATCHES);
@@ -147,10 +151,23 @@ export default function App() {
   // Auth Dialog state
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
+  
+  // Login fields
+  const [loginPlayerId, setLoginPlayerId] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
 
-  // Floating notifications
+  // Registration fields
+  const [regFullName, setRegFullName] = useState('');
+  const [regWhatsapp, setRegWhatsapp] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [regAdminCode, setRegAdminCode] = useState('');
+  const [regRole, setRegRole] = useState<'MEMBER' | 'PLAYER'>('PLAYER');
+
+  // Registration Success Popup State
+  const [newlyRegisteredId, setNewlyRegisteredId] = useState<string | null>(null);
+
+  // Floating Toast Notifications
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -158,51 +175,111 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Login handler
-  const handleAuthSubmit = (e: React.FormEvent) => {
+  // Login Submission
+  const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (authMode === 'login') {
-      const foundUser = users.find(u => u.email.toLowerCase() === authEmail.toLowerCase());
-      if (foundUser) {
-        setCurrentUser(foundUser);
-        setIsAuthOpen(false);
-        showToast(`Welcome back, ${foundUser.name}! Logged in as ${foundUser.role}.`);
-      } else {
-        showToast('Invalid credentials! Try using quick login buttons below.');
-      }
-    } else {
-      const newUser: User = {
-        id: `u-${Date.now()}`,
-        name: authEmail.split('@')[0] || 'New Player',
-        email: authEmail,
-        role: 'PLAYER',
-        grade: 'D (Beginner)',
-        elo: 1200,
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-        phone: '+1 555-0100',
-        membershipStatus: 'Active',
-        duesOwed: 0,
-        matchesPlayed: 0,
-        wins: 0
-      };
-      setUsers([...users, newUser]);
-      setCurrentUser(newUser);
+    const cleanId = loginPlayerId.trim().toUpperCase();
+    const foundUser = users.find(u => u.playerId.toUpperCase() === cleanId);
+
+    if (foundUser) {
+      setCurrentUser(foundUser);
       setIsAuthOpen(false);
-      showToast('Registration successful! Player account created.');
+      setLoginPlayerId('');
+      setLoginPassword('');
+      showToast(`Welcome back, ${foundUser.name}! Signed in as ${foundUser.role} (${foundUser.playerId}).`);
+    } else {
+      showToast('⚠️ Invalid Player ID or Password! Use quick login options below.');
     }
   };
 
-  const handleQuickLogin = (email: string) => {
-    const user = users.find(u => u.email === email);
+  // Registration Submission
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!regFullName.trim() || !regWhatsapp.trim()) {
+      showToast('⚠️ Please fill in all required fields!');
+      return;
+    }
+
+    if (regPassword !== regConfirmPassword) {
+      showToast('⚠️ Passwords do not match! Please re-verify.');
+      return;
+    }
+
+    if (regPassword.length < 4) {
+      showToast('⚠️ Password must be at least 4 characters long.');
+      return;
+    }
+
+    // Determine Role (Only allow SUPER_ADMIN if secret code matches)
+    let assignedRole: UserRole = regRole;
+    if (regAdminCode.trim()) {
+      if (regAdminCode.trim() === SECRET_ADMIN_CODE) {
+        assignedRole = 'SUPER_ADMIN';
+      } else {
+        showToast('⚠️ Invalid Secret Admin Code! Assigned standard account role.');
+        return;
+      }
+    }
+
+    // Generate Running Player ID (e.g. SH-1006)
+    const nextSeq = 1000 + users.length + 1;
+    const generatedPlayerId = `SH-${nextSeq}`;
+
+    const newUser: User = {
+      id: `u-${Date.now()}`,
+      playerId: generatedPlayerId,
+      name: regFullName.trim(),
+      whatsapp: regWhatsapp.trim(),
+      role: assignedRole,
+      grade: 'D (Beginner)',
+      elo: 1200,
+      avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150`,
+      membershipStatus: 'Active',
+      duesOwed: 0,
+      matchesPlayed: 0,
+      wins: 0
+    };
+
+    setUsers([...users, newUser]);
+    setCurrentUser(newUser);
+    setNewlyRegisteredId(generatedPlayerId);
+    
+    // Clear Form
+    setRegFullName('');
+    setRegWhatsapp('');
+    setRegPassword('');
+    setRegConfirmPassword('');
+    setRegAdminCode('');
+
+    showToast(`🎉 Registration Successful! Allocated Player ID: ${generatedPlayerId}`);
+  };
+
+  const handleQuickLogin = (playerId: string) => {
+    const user = users.find(u => u.playerId === playerId);
     if (user) {
       setCurrentUser(user);
       setIsAuthOpen(false);
-      showToast(`Switched user role to ${user.role} (${user.name})`);
+      showToast(`Switched user role to ${user.role} (${user.name} - ${user.playerId})`);
     }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setActiveTab('dashboard');
+    showToast('Signed out successfully. Now in Guest View.');
+  };
+
+  // Nav item visibility helper
+  const canAccessTab = (tabId: string) => {
+    if (currentUser) return true;
+    // Unauthenticated Guests can only access Dashboard and Court Schedule
+    return tabId === 'dashboard' || tabId === 'booking';
   };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col antialiased">
+      
       {/* --- TOP NAVIGATION BAR --- */}
       <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -225,14 +302,18 @@ export default function App() {
             <nav className="hidden md:flex items-center space-x-1">
               {[
                 { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-                { id: 'booking', label: 'Courts & Booking', icon: Calendar },
+                { id: 'booking', label: 'Courts & Schedule', icon: Calendar },
                 { id: 'matchmaker', label: 'Matchmaker', icon: Shuffle },
                 { id: 'scoring', label: 'Live Scoring', icon: Activity },
                 { id: 'grading', label: 'Player Grading', icon: Trophy },
                 { id: 'billing', label: 'Billing & Dues', icon: CreditCard },
               ].map(tab => {
+                const isAllowed = canAccessTab(tab.id);
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
+
+                if (!isAllowed) return null;
+
                 return (
                   <button
                     key={tab.id}
@@ -256,25 +337,28 @@ export default function App() {
                 <div className="flex items-center space-x-3 bg-slate-800/80 p-1.5 pl-3 rounded-full border border-slate-700/60">
                   <div className="text-right hidden sm:block">
                     <p className="text-xs font-semibold text-slate-200 leading-tight">{currentUser.name}</p>
-                    <p className="text-[10px] text-emerald-400 font-mono">{currentUser.role} • {currentUser.grade}</p>
+                    <p className="text-[10px] text-emerald-400 font-mono">{currentUser.role} • {currentUser.playerId}</p>
                   </div>
                   <img src={currentUser.avatar} alt="Avatar" className="w-8 h-8 rounded-full ring-2 ring-emerald-500/50 object-cover" />
                   <button 
-                    onClick={() => setIsAuthOpen(true)} 
-                    title="Switch Account / Logout" 
+                    onClick={handleLogout} 
+                    title="Sign Out" 
                     className="p-1.5 text-slate-400 hover:text-rose-400 rounded-full hover:bg-slate-700/50 transition"
                   >
                     <LogOut className="w-4 h-4" />
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={() => setIsAuthOpen(true)}
-                  className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-2 rounded-lg text-sm font-bold transition shadow-lg shadow-emerald-500/20"
-                >
-                  <UserCheck className="w-4 h-4" />
-                  <span>Sign In</span>
-                </button>
+                <div className="flex items-center space-x-2">
+                  <span className="hidden sm:inline text-xs text-amber-400 font-mono bg-amber-950/60 border border-amber-800/50 px-2 py-1 rounded">Guest Mode</span>
+                  <button
+                    onClick={() => { setAuthMode('login'); setIsAuthOpen(true); }}
+                    className="flex items-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-2 rounded-lg text-sm font-bold transition shadow-lg shadow-emerald-500/20"
+                  >
+                    <UserCheck className="w-4 h-4" />
+                    <span>Sign In</span>
+                  </button>
+                </div>
               )}
             </div>
 
@@ -291,6 +375,7 @@ export default function App() {
             { id: 'grading', label: 'Grading', icon: Trophy },
             { id: 'billing', label: 'Billing', icon: CreditCard },
           ].map(tab => {
+            if (!canAccessTab(tab.id)) return null;
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
@@ -325,7 +410,9 @@ export default function App() {
             courts={courts} 
             matches={matches} 
             invoices={invoices}
+            currentUser={currentUser}
             setActiveTab={setActiveTab}
+            setIsAuthOpen={setIsAuthOpen}
           />
         )}
         {activeTab === 'booking' && (
@@ -335,9 +422,10 @@ export default function App() {
             setBookings={setBookings} 
             currentUser={currentUser} 
             showToast={showToast}
+            setIsAuthOpen={setIsAuthOpen}
           />
         )}
-        {activeTab === 'matchmaker' && (
+        {activeTab === 'matchmaker' && currentUser && (
           <MatchMakerView 
             users={users} 
             courts={courts} 
@@ -348,7 +436,7 @@ export default function App() {
             setActiveTab={setActiveTab}
           />
         )}
-        {activeTab === 'scoring' && (
+        {activeTab === 'scoring' && currentUser && (
           <ScoringView 
             matches={matches} 
             setMatches={setMatches} 
@@ -359,7 +447,7 @@ export default function App() {
             showToast={showToast}
           />
         )}
-        {activeTab === 'grading' && (
+        {activeTab === 'grading' && currentUser && (
           <GradingView 
             users={users} 
             setUsers={setUsers}
@@ -367,7 +455,7 @@ export default function App() {
             showToast={showToast}
           />
         )}
-        {activeTab === 'billing' && (
+        {activeTab === 'billing' && currentUser && (
           <BillingView 
             invoices={invoices} 
             setInvoices={setInvoices} 
@@ -381,18 +469,18 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 space-y-2 sm:space-y-0">
           <div className="flex items-center space-x-2">
             <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>SmashHub System Active</span>
+            <span>SmashHub System Online</span>
           </div>
           <div>
-            <span>SmashHub Badminton Management Engine v3.4.0</span>
+            <span>SmashHub Badminton Platform v4.0.0 • Verified Player ID Auth</span>
           </div>
         </div>
       </footer>
 
-      {/* --- AUTH MODAL --- */}
+      {/* --- AUTH MODAL (LOGIN & REGISTER) --- */}
       {isAuthOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5 relative">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-5 relative max-h-[90vh] overflow-y-auto">
             <button 
               onClick={() => setIsAuthOpen(false)} 
               className="absolute top-4 right-4 text-slate-400 hover:text-white"
@@ -405,79 +493,211 @@ export default function App() {
                 <ShieldCheck className="w-6 h-6 text-emerald-400" />
               </div>
               <h2 className="text-xl font-bold text-white">
-                {authMode === 'login' ? 'Sign In to SmashHub' : 'Create Player Account'}
+                {authMode === 'login' ? 'Sign In with Player ID' : 'Register New Player Account'}
               </h2>
-              <p className="text-xs text-slate-400 mt-1">Manage club bookings, matches, scoring & analytics</p>
+              <p className="text-xs text-slate-400 mt-1">
+                {authMode === 'login' 
+                  ? 'Enter your allocated unique Player ID and password' 
+                  : 'Fill in your WhatsApp contact details & verify password'}
+              </p>
             </div>
 
-            {/* Quick Demo Sign-In Buttons */}
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
-              <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider">Quick Preset Logins:</span>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => handleQuickLogin('admin@smashhub.club')}
-                  className="bg-emerald-950/60 hover:bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 text-xs py-2 px-1 rounded-lg font-mono font-medium transition text-center"
-                >
-                  👑 Super Admin
-                </button>
-                <button
-                  onClick={() => handleQuickLogin('coach@smashhub.club')}
-                  className="bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-500/40 text-cyan-300 text-xs py-2 px-1 rounded-lg font-mono font-medium transition text-center"
-                >
-                  🧢 Coach
-                </button>
-                <button
-                  onClick={() => handleQuickLogin('sam@smashhub.club')}
-                  className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs py-2 px-1 rounded-lg font-mono font-medium transition text-center"
-                >
-                  🏸 Player
-                </button>
+            {/* Preset Quick Logins */}
+            {authMode === 'login' && (
+              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
+                <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider">Quick Preset Logins:</span>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => handleQuickLogin('SH-1001')}
+                    className="bg-emerald-950/60 hover:bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 text-xs py-2 px-1 rounded-lg font-mono font-medium transition text-center"
+                  >
+                    👑 Admin (SH-1001)
+                  </button>
+                  <button
+                    onClick={() => handleQuickLogin('SH-1002')}
+                    className="bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-500/40 text-cyan-300 text-xs py-2 px-1 rounded-lg font-mono font-medium transition text-center"
+                  >
+                    🏅 Member (SH-1002)
+                  </button>
+                  <button
+                    onClick={() => handleQuickLogin('SH-1003')}
+                    className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs py-2 px-1 rounded-lg font-mono font-medium transition text-center"
+                  >
+                    🏸 Player (SH-1003)
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
-            <form onSubmit={handleAuthSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="name@smashhub.club"
-                  value={authEmail}
-                  onChange={e => setAuthEmail(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                />
-              </div>
+            {/* LOGIN FORM */}
+            {authMode === 'login' ? (
+              <form onSubmit={handleLoginSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center space-x-1">
+                    <UserIcon className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Unique Player ID</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. SH-1001"
+                    value={loginPlayerId}
+                    onChange={e => setLoginPlayerId(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white font-mono uppercase focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={authPassword}
-                  onChange={e => setAuthPassword(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                />
-              </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center space-x-1">
+                    <Key className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Password</span>
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={loginPassword}
+                    onChange={e => setLoginPassword(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
 
-              <button
-                type="submit"
-                className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-lg text-sm shadow-lg shadow-emerald-500/20 transition"
-              >
-                {authMode === 'login' ? 'Authenticate' : 'Register Now'}
-              </button>
-            </form>
+                <button
+                  type="submit"
+                  className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-lg text-sm shadow-lg shadow-emerald-500/20 transition"
+                >
+                  Authenticate & Sign In
+                </button>
+              </form>
+            ) : (
+              /* REGISTRATION FORM */
+              <form onSubmit={handleRegisterSubmit} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center space-x-1">
+                    <UserIcon className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Full Player Name *</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Kevin Sanjaya"
+                    value={regFullName}
+                    onChange={e => setRegFullName(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
 
-            <div className="text-center text-xs text-slate-400">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center space-x-1">
+                    <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>WhatsApp Phone Number *</span>
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="+6281234567890"
+                    value={regWhatsapp}
+                    onChange={e => setRegWhatsapp(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Password *</label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      value={regPassword}
+                      onChange={e => setRegPassword(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Confirm Password *</label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      value={regConfirmPassword}
+                      onChange={e => setRegConfirmPassword(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Account Role</label>
+                  <select
+                    value={regRole}
+                    onChange={e => setRegRole(e.target.value as any)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="PLAYER">Player (Standard Court Access)</option>
+                    <option value="MEMBER">Member (Priority Reservation & Tournament)</option>
+                  </select>
+                </div>
+
+                <div className="pt-2 border-t border-slate-800">
+                  <label className="block text-xs font-semibold text-amber-400 mb-1 flex items-center space-x-1">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Secret Admin Code (Super Admin Only)</span>
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="Enter code to register as Super Admin"
+                    value={regAdminCode}
+                    onChange={e => setRegAdminCode(e.target.value)}
+                    className="w-full bg-slate-950 border border-amber-900/60 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">Leave blank for standard Player/Member registration.</p>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-lg text-sm shadow-lg shadow-emerald-500/20 transition mt-2"
+                >
+                  Register Account & Get Player ID
+                </button>
+              </form>
+            )}
+
+            <div className="text-center text-xs text-slate-400 pt-2 border-t border-slate-800">
               {authMode === 'login' ? (
-                <span>Need a member account? <button onClick={() => setAuthMode('register')} className="text-emerald-400 underline">Register</button></span>
+                <span>Need a player account? <button onClick={() => setAuthMode('register')} className="text-emerald-400 font-semibold underline">Register Here</button></span>
               ) : (
-                <span>Already registered? <button onClick={() => setAuthMode('login')} className="text-emerald-400 underline">Sign In</button></span>
+                <span>Already have a Player ID? <button onClick={() => setAuthMode('login')} className="text-emerald-400 font-semibold underline">Sign In Here</button></span>
               )}
             </div>
           </div>
         </div>
       )}
+
+      {/* --- NEWLY REGISTERED PLAYER ID MODAL --- */}
+      {newlyRegisteredId && (
+        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-emerald-500/50 rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl">
+            <div className="w-14 h-14 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto ring-4 ring-emerald-500/30">
+              <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+            </div>
+            <h3 className="text-lg font-bold text-white">Account Created!</h3>
+            <p className="text-xs text-slate-400">Save your allocated unique Player ID for all future logins:</p>
+            
+            <div className="bg-slate-950 p-4 rounded-xl border border-emerald-500/40 text-2xl font-black font-mono text-emerald-400 tracking-wider">
+              {newlyRegisteredId}
+            </div>
+
+            <button
+              onClick={() => setNewlyRegisteredId(null)}
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition"
+            >
+              Got It & Continue
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -486,9 +706,9 @@ export default function App() {
 // 1. DASHBOARD COMPONENT
 // ==========================================
 function DashboardView({ 
-  users, courts, matches, invoices, setActiveTab 
+  users, courts, matches, invoices, currentUser, setActiveTab, setIsAuthOpen
 }: { 
-  users: User[]; courts: Court[]; matches: Match[]; invoices: Invoice[]; setActiveTab: (tab: any) => void; 
+  users: User[]; courts: Court[]; matches: Match[]; invoices: Invoice[]; currentUser: User | null; setActiveTab: (tab: any) => void; setIsAuthOpen: (open: boolean) => void;
 }) {
   const activeCourts = courts.filter(c => c.status === 'Occupied').length;
   const pendingDuesTotal = invoices.filter(i => i.status === 'Pending').reduce((acc, curr) => acc + curr.amount, 0);
@@ -505,27 +725,40 @@ function DashboardView({
               <span>Real-Time Club Dashboard</span>
             </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Badminton Operations & Intelligence
+              Badminton Operations & Analytics
             </h1>
             <p className="text-sm text-slate-400 max-w-xl">
               Automated match pairing, live BWF scoring, court utilization monitoring & player ELO ratings.
             </p>
           </div>
+
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setActiveTab('booking')}
-              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-2 rounded-xl font-bold text-sm shadow-lg shadow-emerald-500/20 transition flex items-center space-x-2"
-            >
-              <Calendar className="w-4 h-4" />
-              <span>Book Court</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('matchmaker')}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2 rounded-xl font-semibold text-sm transition flex items-center space-x-2"
-            >
-              <Shuffle className="w-4 h-4 text-cyan-400" />
-              <span>Auto Pair</span>
-            </button>
+            {currentUser ? (
+              <>
+                <button
+                  onClick={() => setActiveTab('booking')}
+                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-2 rounded-xl font-bold text-sm shadow-lg shadow-emerald-500/20 transition flex items-center space-x-2"
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Book Court</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('matchmaker')}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2 rounded-xl font-semibold text-sm transition flex items-center space-x-2"
+                >
+                  <Shuffle className="w-4 h-4 text-cyan-400" />
+                  <span>Auto Pair</span>
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setIsAuthOpen(true)}
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-5 py-2.5 rounded-xl font-extrabold text-sm shadow-lg shadow-emerald-500/20 transition flex items-center space-x-2"
+              >
+                <Lock className="w-4 h-4" />
+                <span>Sign In with Player ID to Unlock Full Access</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -556,8 +789,8 @@ function DashboardView({
 
         <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-400 uppercase font-semibold">Active Members</p>
-            <h3 className="text-2xl font-bold text-white mt-1">{users.length} <span className="text-xs text-slate-400 font-normal">Graded</span></h3>
+            <p className="text-xs text-slate-400 uppercase font-semibold">Registered Players</p>
+            <h3 className="text-2xl font-bold text-white mt-1">{users.length} <span className="text-xs text-slate-400 font-normal">Members</span></h3>
             <p className="text-[11px] text-emerald-400 mt-1">+4 registered this week</p>
           </div>
           <div className="w-12 h-12 bg-indigo-500/10 text-indigo-400 rounded-xl flex items-center justify-center border border-indigo-500/20">
@@ -610,8 +843,8 @@ function DashboardView({
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-white">Weekly Income & Session Revenue</h3>
-              <p className="text-xs text-slate-400">Court fees, dues & stringing services</p>
+              <h3 className="text-sm font-bold text-white">Weekly Session Revenue</h3>
+              <p className="text-xs text-slate-400">Court fees & membership collection</p>
             </div>
             <span className="text-xs font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-1 rounded">Total $4,420</span>
           </div>
@@ -635,10 +868,12 @@ function DashboardView({
             <Activity className="w-4 h-4 text-emerald-400" />
             <span>Courts Live Overview</span>
           </h3>
-          <button onClick={() => setActiveTab('scoring')} className="text-xs text-emerald-400 hover:underline flex items-center space-x-1">
-            <span>Open Scoring Console</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
+          {currentUser && (
+            <button onClick={() => setActiveTab('scoring')} className="text-xs text-emerald-400 hover:underline flex items-center space-x-1">
+              <span>Open Scoring Console</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -682,7 +917,7 @@ function DashboardView({
                   <div className="h-20 flex flex-col items-center justify-center text-slate-500 text-xs border border-dashed border-slate-800 rounded-lg">
                     <span>Court Open</span>
                     <button onClick={() => setActiveTab('booking')} className="mt-1 text-[11px] text-emerald-400 hover:underline">
-                      Reserve Now
+                      View Schedule
                     </button>
                   </div>
                 )}
@@ -696,17 +931,17 @@ function DashboardView({
 }
 
 // ==========================================
-// 2. BOOKING SYSTEM & COURT MANAGEMENT
+// 2. BOOKING SYSTEM & COURT SCHEDULE
 // ==========================================
 function BookingView({ 
-  courts, bookings, setBookings, currentUser, showToast 
+  courts, bookings, setBookings, currentUser, showToast, setIsAuthOpen
 }: { 
-  courts: Court[]; bookings: Booking[]; setBookings: React.Dispatch<React.SetStateAction<Booking[]>>; currentUser: User | null; showToast: (msg: string) => void;
+  courts: Court[]; bookings: Booking[]; setBookings: React.Dispatch<React.SetStateAction<Booking[]>>; currentUser: User | null; showToast: (msg: string) => void; setIsAuthOpen: (open: boolean) => void;
 }) {
   const [selectedCourt, setSelectedCourt] = useState<Court>(courts[0]);
   const [bookingDate, setBookingDate] = useState('2026-11-06');
   const [selectedSlot, setSelectedSlot] = useState('18:00 - 19:00');
-  const [bookingType, setBookingType] = useState<'Casual Play' | 'Tournament' | 'Coaching Session'>('Casual Play');
+  const [bookingType, setBookingType] = useState<'Casual Play' | 'Tournament' | 'Training Session'>('Casual Play');
 
   const timeSlots = [
     '08:00 - 09:00', '09:00 - 10:00', '10:00 - 11:00', 
@@ -717,11 +952,12 @@ function BookingView({
   const handleCreateBooking = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) {
-      showToast('Please sign in to make court reservations!');
+      showToast('⚠️ Please sign in with your Player ID to make court reservations!');
+      setIsAuthOpen(true);
       return;
     }
 
-    // Check conflict
+    // Check slot conflict
     const isConflict = bookings.some(b => 
       b.courtId === selectedCourt.id && b.date === bookingDate && b.timeSlot === selectedSlot
     );
@@ -736,6 +972,7 @@ function BookingView({
       courtId: selectedCourt.id,
       courtName: selectedCourt.name,
       playerName: currentUser.name,
+      playerId: currentUser.playerId,
       date: bookingDate,
       timeSlot: selectedSlot,
       type: bookingType,
@@ -753,9 +990,9 @@ function BookingView({
         <div>
           <h2 className="text-xl font-bold text-white flex items-center space-x-2">
             <Calendar className="w-5 h-5 text-emerald-400" />
-            <span>Court Booking & Schedule Console</span>
+            <span>Court Schedule & Reservation Console</span>
           </h2>
-          <p className="text-xs text-slate-400">Reserve synthetic & standard courts with real-time slot verification</p>
+          <p className="text-xs text-slate-400">View real-time court availability and reserve sessions</p>
         </div>
       </div>
 
@@ -811,6 +1048,7 @@ function BookingView({
                   <tr>
                     <th className="p-3">Court</th>
                     <th className="p-3">Reserved By</th>
+                    <th className="p-3">Player ID</th>
                     <th className="p-3">Date & Time</th>
                     <th className="p-3">Session Type</th>
                     <th className="p-3">Status</th>
@@ -821,6 +1059,7 @@ function BookingView({
                     <tr key={b.id} className="hover:bg-slate-800/40">
                       <td className="p-3 font-semibold text-slate-200">{b.courtName}</td>
                       <td className="p-3">{b.playerName}</td>
+                      <td className="p-3 font-mono text-emerald-400 font-semibold">{b.playerId}</td>
                       <td className="p-3 font-mono">{b.date} • {b.timeSlot}</td>
                       <td className="p-3">
                         <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-[11px] border border-slate-700">
@@ -838,87 +1077,105 @@ function BookingView({
           </div>
         </div>
 
-        {/* Reservation Form */}
+        {/* Reservation Form (Restricted if Guest) */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 h-fit">
           <div className="border-b border-slate-800 pb-3">
-            <h3 className="font-bold text-white text-base">Confirm Reservation</h3>
+            <h3 className="font-bold text-white text-base">Court Session Booking</h3>
             <p className="text-xs text-slate-400">Selected: <span className="text-emerald-400 font-medium">{selectedCourt.name}</span></p>
           </div>
 
-          <form onSubmit={handleCreateBooking} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Select Date</label>
-              <input 
-                type="date" 
-                value={bookingDate}
-                onChange={e => setBookingDate(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Select Time Slot</label>
-              <div className="grid grid-cols-2 gap-2">
-                {timeSlots.map(slot => {
-                  const isBooked = bookings.some(b => b.courtId === selectedCourt.id && b.date === bookingDate && b.timeSlot === slot);
-                  const isSelected = selectedSlot === slot;
-                  return (
-                    <button
-                      type="button"
-                      key={slot}
-                      disabled={isBooked}
-                      onClick={() => setSelectedSlot(slot)}
-                      className={`py-1.5 px-2 text-xs rounded-lg font-mono text-center transition ${
-                        isBooked ? 'bg-slate-950 text-slate-600 line-through cursor-not-allowed border border-slate-900' :
-                        isSelected ? 'bg-emerald-500 text-slate-950 font-bold' :
-                        'bg-slate-950 border border-slate-800 text-slate-300 hover:border-slate-700'
-                      }`}
-                    >
-                      {slot}
-                    </button>
-                  );
-                })}
+          {!currentUser ? (
+            <div className="bg-slate-950 p-5 rounded-xl border border-amber-500/30 text-center space-y-3">
+              <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/30 rounded-full flex items-center justify-center mx-auto text-amber-400">
+                <Lock className="w-5 h-5" />
               </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Activity Category</label>
-              <select
-                value={bookingType}
-                onChange={e => setBookingType(e.target.value as any)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+              <div>
+                <h4 className="text-xs font-bold text-amber-300 uppercase">Login Required To Book</h4>
+                <p className="text-xs text-slate-400 mt-1">Guests can view court schedules. Sign in with your unique Player ID to make a reservation.</p>
+              </div>
+              <button
+                onClick={() => setIsAuthOpen(true)}
+                className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2 rounded-lg text-xs shadow-md transition"
               >
-                <option value="Casual Play">Casual Play / Sparring</option>
-                <option value="Tournament">Tournament Round</option>
-                <option value="Coaching Session">Personal Coaching</option>
-              </select>
+                Sign In / Register Now
+              </button>
             </div>
+          ) : (
+            <form onSubmit={handleCreateBooking} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Select Date</label>
+                <input 
+                  type="date" 
+                  value={bookingDate}
+                  onChange={e => setBookingDate(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
 
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5 text-xs">
-              <div className="flex justify-between text-slate-400">
-                <span>Base Rate:</span>
-                <span className="font-mono text-slate-200">{selectedCourt.type === 'Synthetic Wooden' ? '$35.00' : '$25.00'}</span>
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Select Time Slot</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {timeSlots.map(slot => {
+                    const isBooked = bookings.some(b => b.courtId === selectedCourt.id && b.date === bookingDate && b.timeSlot === slot);
+                    const isSelected = selectedSlot === slot;
+                    return (
+                      <button
+                        type="button"
+                        key={slot}
+                        disabled={isBooked}
+                        onClick={() => setSelectedSlot(slot)}
+                        className={`py-1.5 px-2 text-xs rounded-lg font-mono text-center transition ${
+                          isBooked ? 'bg-slate-950 text-slate-600 line-through cursor-not-allowed border border-slate-900' :
+                          isSelected ? 'bg-emerald-500 text-slate-950 font-bold' :
+                          'bg-slate-950 border border-slate-800 text-slate-300 hover:border-slate-700'
+                        }`}
+                      >
+                        {slot}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Shuttlecock Pack Addon:</span>
-                <span className="font-mono text-slate-200">$0.00 (Included)</span>
-              </div>
-              <div className="flex justify-between text-slate-200 font-bold pt-1.5 border-t border-slate-800">
-                <span>Total Fee:</span>
-                <span className="font-mono text-emerald-400 text-sm">
-                  ${selectedCourt.type === 'Synthetic Wooden' ? '35.00' : '25.00'}
-                </span>
-              </div>
-            </div>
 
-            <button
-              type="submit"
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-xl text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center space-x-2"
-            >
-              <Check className="w-4 h-4" />
-              <span>Confirm & Lock Booking</span>
-            </button>
-          </form>
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Activity Category</label>
+                <select
+                  value={bookingType}
+                  onChange={e => setBookingType(e.target.value as any)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="Casual Play">Casual Play / Sparring</option>
+                  <option value="Tournament">Tournament Match</option>
+                  <option value="Training Session">Personal Training</option>
+                </select>
+              </div>
+
+              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5 text-xs">
+                <div className="flex justify-between text-slate-400">
+                  <span>Base Court Rate:</span>
+                  <span className="font-mono text-slate-200">{selectedCourt.type === 'Synthetic Wooden' ? '$35.00' : '$25.00'}</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Reserved For:</span>
+                  <span className="font-mono text-emerald-400">{currentUser.name} ({currentUser.playerId})</span>
+                </div>
+                <div className="flex justify-between text-slate-200 font-bold pt-1.5 border-t border-slate-800">
+                  <span>Total Payable:</span>
+                  <span className="font-mono text-emerald-400 text-sm">
+                    ${selectedCourt.type === 'Synthetic Wooden' ? '35.00' : '25.00'}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-xl text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center space-x-2"
+              >
+                <Check className="w-4 h-4" />
+                <span>Confirm Reservation</span>
+              </button>
+            </form>
+          )}
         </div>
 
       </div>
@@ -958,19 +1215,17 @@ function MatchMakerView({
       return;
     }
 
-    // Sort by ELO for balanced pairing
     const sorted = [...activePlayers].sort((a, b) => b.elo - a.elo);
 
     let t1: string[] = [];
     let t2: string[] = [];
 
     if (matchFormat === 'Doubles') {
-      // Balanced ELO algorithm: Pair Highest (1) + Lowest (4) vs Middle (2 + 3)
-      t1 = [sorted[0].name, sorted[3].name];
-      t2 = [sorted[1].name, sorted[2].name];
+      t1 = [`${sorted[0].name} (${sorted[0].playerId})`, `${sorted[3].name} (${sorted[3].playerId})`];
+      t2 = [`${sorted[1].name} (${sorted[1].playerId})`, `${sorted[2].name} (${sorted[2].playerId})`];
     } else {
-      t1 = [sorted[0].name];
-      t2 = [sorted[1].name];
+      t1 = [`${sorted[0].name} (${sorted[0].playerId})`];
+      t2 = [`${sorted[1].name} (${sorted[1].playerId})`];
     }
 
     const newMatch: Match = {
@@ -987,8 +1242,6 @@ function MatchMakerView({
     };
 
     setMatches([newMatch, ...matches]);
-
-    // Update court status
     setCourts(courts.map(c => c.id === targetCourtId ? { ...c, status: 'Occupied', currentMatchId: newMatch.id } : c));
 
     showToast(`🏸 Balanced ${matchFormat} match generated & dispatched to Court ${targetCourtId}!`);
@@ -1003,7 +1256,7 @@ function MatchMakerView({
             <Shuffle className="w-5 h-5 text-cyan-400" />
             <span>AI ELO Matchmaker & Rotation Hub</span>
           </h2>
-          <p className="text-xs text-slate-400">Algorithmic player pairing to guarantee competitive parity & fair court rotation</p>
+          <p className="text-xs text-slate-400">Algorithmic player pairing to guarantee competitive parity & court rotation</p>
         </div>
       </div>
 
@@ -1012,12 +1265,12 @@ function MatchMakerView({
         {/* Player Pool Selector */}
         <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-sm font-bold text-white">Select Player Pool ({selectedPlayerIds.length} Selected)</h3>
+            <h3 className="text-sm font-bold text-white">Select Active Player Pool ({selectedPlayerIds.length} Selected)</h3>
             <button 
               onClick={() => setSelectedPlayerIds(selectedPlayerIds.length === users.length ? [] : users.map(u => u.id))}
               className="text-xs text-cyan-400 hover:underline"
             >
-              {selectedPlayerIds.length === users.length ? 'Deselect All' : 'Select All Members'}
+              {selectedPlayerIds.length === users.length ? 'Deselect All' : 'Select All Registered Players'}
             </button>
           </div>
 
@@ -1037,8 +1290,8 @@ function MatchMakerView({
                   <div className="flex items-center space-x-3">
                     <img src={player.avatar} alt="Avatar" className="w-9 h-9 rounded-full object-cover ring-1 ring-slate-700" />
                     <div>
-                      <h4 className="text-xs font-bold text-white">{player.name}</h4>
-                      <p className="text-[10px] text-slate-400">{player.grade} • <span className="text-emerald-400 font-mono">{player.elo} ELO</span></p>
+                      <h4 className="text-xs font-bold text-white">{player.name} <span className="text-[10px] text-cyan-400 font-mono">({player.playerId})</span></h4>
+                      <p className="text-[10px] text-slate-400">{player.role} • {player.grade} • <span className="text-emerald-400 font-mono">{player.elo} ELO</span></p>
                     </div>
                   </div>
                   <div className={`w-5 h-5 rounded-md flex items-center justify-center border ${
@@ -1103,24 +1356,12 @@ function MatchMakerView({
               </select>
             </div>
 
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2 text-xs">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Estimated Fair Score:</span>
-              <div className="flex items-center justify-between text-slate-300 font-mono">
-                <span>Team A Avg ELO:</span>
-                <span className="text-cyan-400">~1780</span>
-              </div>
-              <div className="flex items-center justify-between text-slate-300 font-mono">
-                <span>Team B Avg ELO:</span>
-                <span className="text-emerald-400">~1765</span>
-              </div>
-            </div>
-
             <button
               onClick={handleGeneratePairings}
               className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold py-3 rounded-xl text-xs shadow-lg shadow-cyan-500/20 transition flex items-center justify-center space-x-2"
             >
               <Zap className="w-4 h-4" />
-              <span>Generate & Start Match</span>
+              <span>Generate & Dispatch Match</span>
             </button>
           </div>
         </div>
@@ -1143,7 +1384,6 @@ function ScoringView({
 
   const activeMatch = matches.find(m => m.id === selectedMatchId);
 
-  // Score Increment Logic (BWF Standard Rally Point System)
   const addPoint = (team: 1 | 2) => {
     if (!activeMatch || activeMatch.status === 'Completed') return;
 
@@ -1160,7 +1400,6 @@ function ScoringView({
     const s1 = scores1[currentSetIdx];
     const s2 = scores2[currentSetIdx];
 
-    // Check Set Victory (21 pts, win by 2, cap at 30)
     let setWinner: 1 | 2 | null = null;
     if ((s1 >= 21 || s2 >= 21) && Math.abs(s1 - s2) >= 2) {
       setWinner = s1 > s2 ? 1 : 2;
@@ -1169,12 +1408,10 @@ function ScoringView({
     }
 
     if (setWinner) {
-      // Check overall match winner (Best of 3)
       const setsWon1 = scores1.filter((s, idx) => s > (scores2[idx] || 0) && (s >= 21 || scores2[idx] >= 21)).length;
       const setsWon2 = scores2.filter((s, idx) => s > (scores1[idx] || 0) && (s >= 21 || scores1[idx] >= 21)).length;
 
       if (setsWon1 === 2 || setsWon2 === 2) {
-        // Final Match Complete!
         const matchWinner = setsWon1 === 2 ? 1 : 2;
         setMatches(matches.map(m => m.id === activeMatch.id ? {
           ...m,
@@ -1184,17 +1421,14 @@ function ScoringView({
           winner: matchWinner
         } : m));
 
-        // Free up court
         setCourts(courts.map(c => c.id === activeMatch.courtId ? { ...c, status: 'Available', currentMatchId: undefined } : c));
 
-        // Automatic ELO Adjustment simulation
         const winningTeamNames = matchWinner === 1 ? activeMatch.team1 : activeMatch.team2;
-        setUsers(users.map(u => winningTeamNames.includes(u.name) ? { ...u, elo: u.elo + 25, wins: u.wins + 1, matchesPlayed: u.matchesPlayed + 1 } : u));
+        setUsers(users.map(u => winningTeamNames.some(name => name.includes(u.name)) ? { ...u, elo: u.elo + 25, wins: u.wins + 1, matchesPlayed: u.matchesPlayed + 1 } : u));
 
-        showToast(`🏆 Match Finalized! Team ${matchWinner} Wins! ELO updated.`);
+        showToast(`🏆 Match Finalized! Team ${matchWinner} Wins! Player ELO updated.`);
         return;
       } else {
-        // Advance to next set
         showToast(`Set ${activeMatch.currentSet} won by Team ${setWinner}! Moving to Set ${activeMatch.currentSet + 1}.`);
         scores1.push(0);
         scores2.push(0);
@@ -1229,7 +1463,6 @@ function ScoringView({
         </div>
       </div>
 
-      {/* Match Selector Tabs */}
       <div className="flex space-x-2 overflow-x-auto pb-2">
         {matches.map(m => (
           <button
@@ -1249,7 +1482,6 @@ function ScoringView({
       {activeMatch ? (
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-8 shadow-2xl relative overflow-hidden">
           
-          {/* Top Info Bar */}
           <div className="flex justify-between items-center text-xs text-slate-400 border-b border-slate-800 pb-4">
             <span className="font-mono bg-slate-950 px-3 py-1 rounded-full border border-slate-800">
               Court {activeMatch.courtId} • Set {activeMatch.currentSet} / 3
@@ -1261,10 +1493,9 @@ function ScoringView({
             </span>
           </div>
 
-          {/* Big Scoreboard Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
             
-            {/* Team 1 Score Card */}
+            {/* Team 1 Card */}
             <div className={`p-6 rounded-2xl border transition-all text-center space-y-4 ${
               activeMatch.serverTeam === 1 
                 ? 'bg-gradient-to-b from-slate-900 to-slate-950 border-emerald-500/60 ring-2 ring-emerald-500/20' 
@@ -1293,7 +1524,7 @@ function ScoringView({
               </button>
             </div>
 
-            {/* Team 2 Score Card */}
+            {/* Team 2 Card */}
             <div className={`p-6 rounded-2xl border transition-all text-center space-y-4 ${
               activeMatch.serverTeam === 2 
                 ? 'bg-gradient-to-b from-slate-900 to-slate-950 border-cyan-500/60 ring-2 ring-cyan-500/20' 
@@ -1324,7 +1555,6 @@ function ScoringView({
 
           </div>
 
-          {/* Previous Sets Breakdown */}
           <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
             <h4 className="text-xs font-mono text-slate-400 uppercase">Set History Summary</h4>
             <div className="flex space-x-4 text-xs font-mono">
@@ -1361,13 +1591,13 @@ function GradingView({
 
   const handleUpdateGrade = (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentUser?.role !== 'SUPER_ADMIN' && currentUser?.role !== 'COACH') {
-      showToast('⚠️ Only Admins and Coaches can modify official player skill grades!');
+    if (currentUser?.role !== 'SUPER_ADMIN') {
+      showToast('⚠️ Only Super Admins can modify official player skill grades!');
       return;
     }
 
     setUsers(users.map(u => u.id === selectedUser.id ? { ...u, grade: newGrade, elo: newElo } : u));
-    showToast(`Grading updated for ${selectedUser.name} -> ${newGrade} (${newElo} ELO)`);
+    showToast(`Grading updated for ${selectedUser.name} (${selectedUser.playerId}) -> ${newGrade} (${newElo} ELO)`);
   };
 
   return (
@@ -1376,7 +1606,7 @@ function GradingView({
         <div>
           <h2 className="text-xl font-bold text-white flex items-center space-x-2">
             <Trophy className="w-5 h-5 text-amber-400" />
-            <span>Player Skill Tier & ELO Leaderboard</span>
+            <span>Player Skill Tier & ELO Standings</span>
           </h2>
           <p className="text-xs text-slate-400">Club ladder standings, grading evaluations & match win rates</p>
         </div>
@@ -1393,10 +1623,11 @@ function GradingView({
               <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-mono border-b border-slate-800">
                 <tr>
                   <th className="p-3">Rank & Player</th>
+                  <th className="p-3">Player ID</th>
+                  <th className="p-3">WhatsApp Contact</th>
                   <th className="p-3">Skill Grade</th>
                   <th className="p-3">ELO Rating</th>
                   <th className="p-3">Win Rate</th>
-                  <th className="p-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
@@ -1415,9 +1646,11 @@ function GradingView({
                         <img src={player.avatar} alt="Avatar" className="w-8 h-8 rounded-full object-cover" />
                         <div>
                           <p className="font-bold text-slate-100">{player.name}</p>
-                          <p className="text-[10px] text-slate-400">{player.email}</p>
+                          <p className="text-[10px] text-slate-400">{player.role}</p>
                         </div>
                       </td>
+                      <td className="p-3 font-mono font-bold text-emerald-400">{player.playerId}</td>
+                      <td className="p-3 font-mono text-slate-400">{player.whatsapp}</td>
                       <td className="p-3 font-semibold">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-mono border ${
                           player.grade.startsWith('S') ? 'bg-amber-950 text-amber-300 border-amber-700' :
@@ -1432,9 +1665,6 @@ function GradingView({
                       <td className="p-3 font-mono">
                         {winRate}% <span className="text-[10px] text-slate-500">({player.wins}/{player.matchesPlayed})</span>
                       </td>
-                      <td className="p-3 text-right">
-                        <button className="text-xs text-slate-400 hover:text-white">Edit</button>
-                      </td>
                     </tr>
                   );
                 })}
@@ -1447,7 +1677,7 @@ function GradingView({
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 h-fit">
           <div className="border-b border-slate-800 pb-3">
             <h3 className="font-bold text-white text-base">Grading Inspector</h3>
-            <p className="text-xs text-slate-400">Selected Member: <span className="text-emerald-400 font-medium">{selectedUser.name}</span></p>
+            <p className="text-xs text-slate-400">Selected Member: <span className="text-emerald-400 font-medium">{selectedUser.name} ({selectedUser.playerId})</span></p>
           </div>
 
           <form onSubmit={handleUpdateGrade} className="space-y-4">
@@ -1476,17 +1706,17 @@ function GradingView({
               />
             </div>
 
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5 text-xs text-slate-400">
-              <p>📌 Note: Modifying player grade recalibrates automated matchmaker seeding algorithms.</p>
-            </div>
-
             <button
               type="submit"
-              className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 rounded-xl text-xs shadow-lg shadow-amber-500/20 transition flex items-center justify-center space-x-2"
+              disabled={currentUser?.role !== 'SUPER_ADMIN'}
+              className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-bold py-2.5 rounded-xl text-xs shadow-lg shadow-amber-500/20 transition flex items-center justify-center space-x-2"
             >
               <Check className="w-4 h-4" />
-              <span>Save & Update Ladder</span>
+              <span>Save & Update Skill Tier</span>
             </button>
+            {currentUser?.role !== 'SUPER_ADMIN' && (
+              <p className="text-[10px] text-rose-400 text-center">Only Super Admins can alter skill ratings.</p>
+            )}
           </form>
         </div>
 
@@ -1516,7 +1746,7 @@ function BillingView({
             <CreditCard className="w-5 h-5 text-emerald-400" />
             <span>Billing, Invoices & Membership Fees</span>
           </h2>
-          <p className="text-xs text-slate-400">Manage court fees, monthly dues & automated payment collection</p>
+          <p className="text-xs text-slate-400">Manage court fees, monthly dues & payment collection</p>
         </div>
       </div>
 
@@ -1526,7 +1756,8 @@ function BillingView({
             <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-mono border-b border-slate-800">
               <tr>
                 <th className="p-3">Invoice Ref</th>
-                <th className="p-3">Member</th>
+                <th className="p-3">Player Name</th>
+                <th className="p-3">Player ID</th>
                 <th className="p-3">Description</th>
                 <th className="p-3">Amount</th>
                 <th className="p-3">Due Date</th>
@@ -1539,6 +1770,7 @@ function BillingView({
                 <tr key={inv.id} className="hover:bg-slate-800/40">
                   <td className="p-3 font-mono text-slate-400 font-semibold">{inv.id}</td>
                   <td className="p-3 font-bold text-slate-200">{inv.playerName}</td>
+                  <td className="p-3 font-mono text-emerald-400 font-semibold">{inv.playerId}</td>
                   <td className="p-3 text-slate-300">{inv.description}</td>
                   <td className="p-3 font-mono font-bold text-emerald-400">${inv.amount}.00</td>
                   <td className="p-3 font-mono">{inv.dueDate}</td>
