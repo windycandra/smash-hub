@@ -119,7 +119,7 @@ export default function App() {
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    setTimeout(() => setToastMessage(null), 4500);
   };
 
   // --- REALTIME D1 DATABASE FETCH ENGINE ---
@@ -155,7 +155,7 @@ export default function App() {
       setLastSyncedAt(new Date().toLocaleTimeString());
       setDbStatus(fetchedUsers.length === 0 && fetchedCourts.length === 0 ? 'Empty' : 'Connected');
     } catch (error) {
-      console.warn('Cloudflare D1 API endpoint standard query failed or offline:', error);
+      console.warn('Cloudflare D1 API query offline or error:', error);
       setDbStatus('Offline');
     } finally {
       setIsLoading(false);
@@ -176,7 +176,7 @@ export default function App() {
     e.preventDefault();
     const cleanId = loginPlayerId.trim().toUpperCase();
 
-    // Check fetched users list or hit real-time auth endpoint
+    // First check locally fetched D1 users list
     const foundUser = users.find(u => u.playerId.toUpperCase() === cleanId);
 
     if (foundUser) {
@@ -186,30 +186,30 @@ export default function App() {
       setLoginPassword('');
       showToast(`Welcome back, ${foundUser.name}! Signed in as ${foundUser.role} (${foundUser.playerId}).`);
     } else {
-      // Try direct D1 API query if not found in local memory
+      // Direct API retry to D1
       try {
-        const res = await fetch(`/api/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ playerId: cleanId, password: loginPassword })
-        });
+        const res = await fetch(`/api/users`);
         if (res.ok) {
-          const userData = await res.json();
-          setCurrentUser(userData);
-          setIsAuthOpen(false);
-          setLoginPlayerId('');
-          setLoginPassword('');
-          showToast(`Welcome back, ${userData.name}! Signed in as ${userData.role} (${userData.playerId}).`);
-          return;
+          const freshUsers: User[] = await res.json();
+          setUsers(freshUsers);
+          const freshFound = freshUsers.find(u => u.playerId.toUpperCase() === cleanId);
+          if (freshFound) {
+            setCurrentUser(freshFound);
+            setIsAuthOpen(false);
+            setLoginPlayerId('');
+            setLoginPassword('');
+            showToast(`Welcome back, ${freshFound.name}! Signed in as ${freshFound.role} (${freshFound.playerId}).`);
+            return;
+          }
         }
       } catch (err) {
-        console.error('D1 Auth error:', err);
+        console.error('D1 Auth fetch error:', err);
       }
-      showToast('⚠️ Invalid Player ID or Password! Please verify your credentials.');
+      showToast('⚠️ Player ID not found in D1 Database! Please check your ID or Register.');
     }
   };
 
-  // Registration Submission with D1 Sync
+  // Registration Submission with Strict D1 Write Verification
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -238,47 +238,70 @@ export default function App() {
       }
     }
 
-    // Generate Running Player ID (e.g. SH-1001, SH-1002...)
+    // Generate Running Player ID
     const nextSeq = 1000 + users.length + 1;
     const generatedPlayerId = `SH-${nextSeq}`;
 
-    const newUser: User = {
+    const newUserPayload = {
       id: `u-${Date.now()}`,
       playerId: generatedPlayerId,
       name: regFullName.trim(),
       whatsapp: regWhatsapp.trim(),
+      password: regPassword,
       role: assignedRole,
-      grade: 'D (Beginner)',
+      grade: 'D (Beginner)' as SkillGrade,
       elo: 1200,
       avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150`,
-      membershipStatus: 'Active',
+      membershipStatus: 'Active' as const,
       duesOwed: 0,
       matchesPlayed: 0,
       wins: 0
     };
 
-    // Save to D1 database via API
+    // Save directly to Cloudflare D1 database via API with HTTP error verification
     try {
-      await fetch('/api/users', {
+      const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newUser)
+        body: JSON.stringify(newUserPayload)
       });
-    } catch (err) {
-      console.warn('Persisting locally due to standalone mode:', err);
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status} error` }));
+        throw new Error(errorData.error || `Server returned HTTP status ${res.status}`);
+      }
+
+      const newUser: User = {
+        id: newUserPayload.id,
+        playerId: newUserPayload.playerId,
+        name: newUserPayload.name,
+        whatsapp: newUserPayload.whatsapp,
+        role: newUserPayload.role,
+        grade: newUserPayload.grade,
+        elo: newUserPayload.elo,
+        avatar: newUserPayload.avatar,
+        membershipStatus: newUserPayload.membershipStatus,
+        duesOwed: newUserPayload.duesOwed,
+        matchesPlayed: newUserPayload.matchesPlayed,
+        wins: newUserPayload.wins
+      };
+
+      setUsers(prev => [newUser, ...prev]);
+      setCurrentUser(newUser);
+      setNewlyRegisteredId(generatedPlayerId);
+
+      setRegFullName('');
+      setRegWhatsapp('');
+      setRegPassword('');
+      setRegConfirmPassword('');
+      setRegAdminCode('');
+
+      showToast(`🎉 Account ${generatedPlayerId} written successfully to Cloudflare D1!`);
+      fetchD1Data(true); // Immediate sync verify
+    } catch (err: any) {
+      console.error('Failed writing user to Cloudflare D1:', err);
+      showToast(`❌ D1 Write Failed: ${err.message}. Check D1 Binding 'DB' in Cloudflare.`);
     }
-
-    setUsers(prev => [...prev, newUser]);
-    setCurrentUser(newUser);
-    setNewlyRegisteredId(generatedPlayerId);
-    
-    setRegFullName('');
-    setRegWhatsapp('');
-    setRegPassword('');
-    setRegConfirmPassword('');
-    setRegAdminCode('');
-
-    showToast(`🎉 Registration Successful! Allocated Player ID: ${generatedPlayerId}`);
   };
 
   const handleQuickLogin = (playerId: string) => {
@@ -320,7 +343,7 @@ export default function App() {
                 <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-emerald-400 bg-clip-text text-transparent">
                   SmashHub<span className="text-emerald-400">.pro</span>
                 </span>
-                <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Live D1 Database Engine</span>
+                <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Live D1 Engine</span>
               </div>
             </div>
 
@@ -445,9 +468,9 @@ export default function App() {
 
       {/* --- TOAST NOTIFICATION --- */}
       {toastMessage && (
-        <div className="fixed bottom-5 right-5 z-50 bg-emerald-950 border border-emerald-500/50 text-emerald-200 px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 animate-bounce">
+        <div className="fixed bottom-5 right-5 z-50 bg-slate-900 border border-emerald-500/70 text-slate-100 px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 max-w-md animate-bounce">
           <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-          <span className="text-sm font-medium">{toastMessage}</span>
+          <span className="text-xs font-medium leading-tight">{toastMessage}</span>
         </div>
       )}
 
@@ -546,7 +569,7 @@ export default function App() {
             <span>SmashHub System Online • Cloudflare D1 Real-Time Sync</span>
           </div>
           <div>
-            <span>SmashHub Badminton Platform v4.2.0 • Zero Hardcoded Data</span>
+            <span>SmashHub Badminton Platform v4.3.0 • Direct D1 SQL Backend</span>
           </div>
         </div>
       </footer>
@@ -572,7 +595,7 @@ export default function App() {
               <p className="text-xs text-slate-400 mt-1">
                 {authMode === 'login' 
                   ? 'Enter your allocated unique Player ID and password' 
-                  : 'Fill in your WhatsApp contact details & verify password'}
+                  : 'Fill in your details to create a record in Cloudflare D1'}
               </p>
             </div>
 
@@ -711,7 +734,7 @@ export default function App() {
                   </label>
                   <input
                     type="password"
-                    placeholder="Enter code to register as Super Admin"
+                    placeholder="Enter SMASH2026ADMIN for Super Admin"
                     value={regAdminCode}
                     onChange={e => setRegAdminCode(e.target.value)}
                     className="w-full bg-slate-950 border border-amber-900/60 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
@@ -723,7 +746,7 @@ export default function App() {
                   type="submit"
                   className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-lg text-sm shadow-lg shadow-emerald-500/20 transition mt-2"
                 >
-                  Register Account & Save to D1
+                  Register Account & Write to D1
                 </button>
               </form>
             )}
@@ -746,7 +769,7 @@ export default function App() {
             <div className="w-14 h-14 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto ring-4 ring-emerald-500/30">
               <CheckCircle2 className="w-8 h-8 text-emerald-400" />
             </div>
-            <h3 className="text-lg font-bold text-white">Account Saved to D1 Database!</h3>
+            <h3 className="text-lg font-bold text-white">Account Saved to Cloudflare D1!</h3>
             <p className="text-xs text-slate-400">Save your allocated unique Player ID for all future logins:</p>
             
             <div className="bg-slate-950 p-4 rounded-xl border border-emerald-500/40 text-2xl font-black font-mono text-emerald-400 tracking-wider">
@@ -779,7 +802,6 @@ function DashboardView({
   const pendingDuesTotal = invoices.filter(i => i.status === 'Pending').reduce((acc, curr) => acc + curr.amount, 0);
   const liveMatchesCount = matches.filter(m => m.status === 'Live').length;
 
-  // Dynamic Occupancy & Revenue Data calculated from live state
   const occupancyChartData = [
     { hour: '14:00', occupancy: Math.min(100, (activeCourts * 15)) },
     { hour: '16:00', occupancy: Math.min(100, (activeCourts * 25)) },
@@ -942,7 +964,7 @@ function DashboardView({
         </div>
       </div>
 
-      {/* Live Courts & Active Scoring Quick Status */}
+      {/* Live Courts Overview */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-white flex items-center space-x-2">
@@ -959,7 +981,7 @@ function DashboardView({
 
         {courts.length === 0 ? (
           <div className="text-center py-8 text-slate-500 text-xs border border-dashed border-slate-800 rounded-xl">
-            No courts registered in D1 database yet. Execute schema seeding SQL in Cloudflare D1 Console.
+            No courts registered in D1 database yet. Run schema seeding SQL in Cloudflare D1 Console.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1077,19 +1099,21 @@ function BookingView({
       fee: courtFee
     };
 
-    // Save directly to D1 database endpoint
     try {
-      await fetch('/api/bookings', {
+      const res = await fetch('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newBooking)
       });
-    } catch (err) {
-      console.warn('Persisting booking locally:', err);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      setBookings([newBooking, ...bookings]);
+      showToast(`✅ Reserved ${selectedCourt.name} (${selectedCourt.courtCode}) for ${bookingDate} [${selectedSlot}]`);
+      fetchD1Data(true);
+    } catch (err: any) {
+      showToast(`⚠️ Reservation API Error: ${err.message}`);
     }
-
-    setBookings([newBooking, ...bookings]);
-    showToast(`✅ Reserved ${selectedCourt.name} (${selectedCourt.courtCode}) for ${bookingDate} [${selectedSlot}]`);
   };
 
   return (
@@ -1112,7 +1136,7 @@ function BookingView({
           
           {courts.length === 0 ? (
             <div className="p-8 bg-slate-900 border border-slate-800 rounded-xl text-center text-slate-400 text-xs">
-              No courts available in database. Add courts in D1 SQL table to begin.
+              No courts available in database. Run D1 schema script to populate courts.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1193,7 +1217,7 @@ function BookingView({
           </div>
         </div>
 
-        {/* Reservation Form (Restricted if Guest) */}
+        {/* Reservation Form */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 h-fit">
           <div className="border-b border-slate-800 pb-3">
             <h3 className="font-bold text-white text-base">Court Session Booking</h3>
@@ -1728,7 +1752,6 @@ function GradingView({
     }
     if (!selectedUser) return;
 
-    // Update in D1 SQLite table via API
     try {
       await fetch(`/api/users/${selectedUser.id}`, {
         method: 'PUT',
