@@ -215,7 +215,7 @@ export default function App() {
               </div>
               <div>
                 <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-emerald-400 bg-clip-text text-transparent">
-                  Smash Hub<span className="text-emerald-400">.pro</span>
+                  SmashHub<span className="text-emerald-400">.pro</span>
                 </span>
                 <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Club OS & Analytics</span>
               </div>
@@ -381,10 +381,10 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 space-y-2 sm:space-y-0">
           <div className="flex items-center space-x-2">
             <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Smash Hub System Active</span>
+            <span>SmashHub System Active</span>
           </div>
           <div>
-            <span>Smash Hub Management Engine v3.4.0</span>
+            <span>SmashHub Badminton Management Engine v3.4.0</span>
           </div>
         </div>
       </footer>
