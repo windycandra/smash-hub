@@ -1,11 +1,12 @@
 {
-"name": "smashhub-manager",
+"name": "smash-hub",
 "private": true,
-"version": "0.2.2",
+"version": "0.2.7",
 "type": "module",
 "scripts": {
 "dev": "vite",
 "build": "vite build",
+"lint": "eslint .",
 "preview": "vite preview"
 },
 "dependencies": {
