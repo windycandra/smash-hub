@@ -9,12 +9,10 @@ export default {
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     };
 
-    // Pre-flight OPTIONS request handling
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // Intercept all /api/* requests
     if (url.pathname.startsWith('/api/')) {
       if (!env.DB) {
         return new Response(
@@ -24,7 +22,7 @@ export default {
       }
 
       try {
-        // --- USERS API ENDPOINTS ---
+        // --- USERS TABLE ENDPOINTS ---
         if (url.pathname === '/api/users') {
           if (request.method === 'GET') {
             const { results } = await env.DB.prepare("SELECT * FROM users ORDER BY elo DESC").all();
@@ -36,92 +34,150 @@ export default {
           if (request.method === 'POST') {
             const body = await request.json();
             const pId = body.player_id || body.playerId;
-            
-            // Insert user into D1 SQL Table mapping both player_id and playerId
+            const fullName = body.full_name || body.name;
+            const whatsapp = body.whatsapp_number || body.whatsapp;
+            const pwd = body.password_hash || body.password || '';
+            const memStatus = body.membership_status || body.membershipStatus || 'Active';
+            const dues = body.dues_owed ?? body.duesOwed ?? 0.0;
+            const matchesPlayed = body.matches_played ?? body.matchesPlayed ?? 0;
+
             await env.DB.prepare(`
-              INSERT INTO users (id, player_id, playerId, name, whatsapp, password, role, grade, elo, avatar, membershipStatus, duesOwed, matchesPlayed, wins)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              INSERT INTO users (
+                id, player_id, full_name, whatsapp_number, password_hash, 
+                role, grade, elo, avatar, membership_status, dues_owed, 
+                matches_played, wins
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).bind(
               body.id,
               pId,
-              pId,
-              body.name,
-              body.whatsapp,
-              body.password || '',
+              fullName,
+              whatsapp,
+              pwd,
               body.role || 'PLAYER',
               body.grade || 'D (Beginner)',
-              body.elo || 1200,
+              body.elo ?? 1200,
               body.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-              body.membershipStatus || 'Active',
-              body.duesOwed || 0,
-              body.matchesPlayed || 0,
-              body.wins || 0
+              memStatus,
+              dues,
+              matchesPlayed,
+              body.wins ?? 0
             ).run();
 
             return new Response(
-              JSON.stringify({ success: true, message: 'User written to D1', playerId: pId }),
+              JSON.stringify({ success: true, message: 'User stored in D1 users table', player_id: pId }),
               { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
+          }
+
+          if (request.method === 'PUT') {
+            const body = await request.json();
+            const pId = body.player_id || body.playerId;
+            const fullName = body.full_name || body.name;
+            const whatsapp = body.whatsapp_number || body.whatsapp;
+            const memStatus = body.membership_status || body.membershipStatus || 'Active';
+
+            await env.DB.prepare(`
+              UPDATE users SET 
+                player_id = ?, full_name = ?, whatsapp_number = ?, role = ?, 
+                grade = ?, elo = ?, membership_status = ?, dues_owed = ?
+              WHERE id = ?
+            `).bind(
+              pId,
+              fullName,
+              whatsapp,
+              body.role,
+              body.grade,
+              body.elo,
+              memStatus,
+              body.dues_owed ?? body.duesOwed ?? 0.0,
+              body.id
+            ).run();
+
+            return new Response(
+              JSON.stringify({ success: true, message: 'User updated in D1' }),
+              { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
+
+        // --- COURTS TABLE ENDPOINTS ---
+        if (url.pathname === '/api/courts') {
+          if (request.method === 'GET') {
+            const { results } = await env.DB.prepare("SELECT * FROM courts ORDER BY id ASC").all();
+            return new Response(JSON.stringify(results || []), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
           }
 
           if (request.method === 'POST') {
             const body = await request.json();
             await env.DB.prepare(`
-              INSERT INTO bookings (id, courtId, courtName, courtCode, playerName, playerId, date, timeSlot, type, paymentStatus, fee)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              INSERT INTO courts (name, court_code, status, current_match_id)
+              VALUES (?, ?, ?, ?)
             `).bind(
-              body.id, body.courtId, body.courtName, body.courtCode || '', body.playerName, body.playerId,
-              body.date, body.timeSlot, body.type, body.paymentStatus, body.fee
+              body.name,
+              body.court_code || body.courtCode,
+              body.status || 'Available',
+              body.current_match_id || body.currentMatchId || null
             ).run();
 
             return new Response(
-              JSON.stringify({ success: true, message: 'Booking written to D1' }),
+              JSON.stringify({ success: true, message: 'Court stored in D1 courts table' }),
               { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
           }
         }
 
-        // --- MATCHES API ENDPOINTS ---
-        if (url.pathname === '/api/matches') {
+        // --- BOOKINGS TABLE ENDPOINTS ---
+        if (url.pathname === '/api/bookings') {
           if (request.method === 'GET') {
-            const { results } = await env.DB.prepare("SELECT * FROM matches ORDER BY id DESC").all();
-            const parsed = (results || []).map(m => ({
-              ...m,
-              team1: JSON.parse(m.team1 || '[]'),
-              team2: JSON.parse(m.team2 || '[]'),
-              score1: JSON.parse(m.score1 || '[0]'),
-              score2: JSON.parse(m.score2 || '[0]'),
-            }));
-            return new Response(JSON.stringify(parsed), {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            });
-          }
-        }
-
-        // --- INVOICES API ENDPOINTS ---
-        if (url.pathname === '/api/invoices') {
-          if (request.method === 'GET') {
-            const { results } = await env.DB.prepare("SELECT * FROM invoices ORDER BY dueDate DESC").all();
+            const { results } = await env.DB.prepare("SELECT * FROM bookings ORDER BY created_at DESC").all();
             return new Response(JSON.stringify(results || []), {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
           }
+
+          if (request.method === 'POST') {
+            const body = await request.json();
+            await env.DB.prepare(`
+              INSERT INTO bookings (
+                id, court_id, court_name, court_code, player_name, 
+                player_id, booking_date, time_slot, type, payment_status, fee
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).bind(
+              body.id,
+              body.court_id || body.courtId,
+              body.court_name || body.courtName,
+              body.court_code || body.courtCode,
+              body.player_name || body.playerName,
+              body.player_id || body.playerId,
+              body.booking_date || body.date,
+              body.time_slot || body.timeSlot,
+              body.type,
+              body.payment_status || body.paymentStatus,
+              body.fee
+            ).run();
+
+            return new Response(
+              JSON.stringify({ success: true, message: 'Booking stored in D1 bookings table' }),
+              { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
         }
 
         return new Response(
-          JSON.stringify({ error: `API route '${url.pathname}' not found` }),
+          JSON.stringify({ error: `Route '${url.pathname}' not found` }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
 
       } catch (dbErr) {
         return new Response(
-          JSON.stringify({ error: dbErr.message || 'Database Query Error' }),
+          JSON.stringify({ error: dbErr.message || 'Database SQL Execution Error' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
 
-    // Default static assets fallback for Vite bundle HTML/JS/CSS
     return env.ASSETS.fetch(request);
   }
 };
