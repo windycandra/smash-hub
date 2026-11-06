@@ -1,4 +1,4 @@
-// v0.2.7 - SmashHub Pro Manager (Full Integration & Visualizations)
+// v0.2.8 - SmashHub Pro Manager (Full Runnable & Validated)
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
@@ -109,11 +109,16 @@ export default function App() {
 
   // Auth Dialog state
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
   
   // Login fields (ID or Name)
   const [loginCredential, setLoginCredential] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+
+  // Forgot / Reset Password fields
+  const [resetIdentifier, setResetIdentifier] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
 
   // Registration fields
   const [regFullName, setRegFullName] = useState('');
@@ -126,7 +131,7 @@ export default function App() {
   // Registration Success Modal
   const [newlyRegisteredId, setNewlyRegisteredId] = useState<string | null>(null);
 
-  // Topmost Layer Toast Notifications
+  // Bottom Layer Toast Notifications
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const showToast = (text: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -154,6 +159,42 @@ export default function App() {
     } else {
       localStorage.removeItem(SESSION_STORAGE_KEY);
     }
+  };
+
+  // Helper to normalize phone numbers for duplicate checking
+  const normalizePhone = (phone: string): string => {
+    let clean = phone.trim().replace(/\s+|-/g, '');
+    if (clean.startsWith('+62')) {
+      clean = '0' + clean.slice(3);
+    } else if (clean.startsWith('62')) {
+      clean = '0' + clean.slice(2);
+    }
+    return clean;
+  };
+
+  // Helper to validate phone number length rules:
+  // Without +62: 10 to 12 digits
+  // With +62: 9 to 11 digits after +62 (e.g. +628123456789 -> 9 digits after +62)
+  const validatePhoneNumber = (phone: string): { valid: boolean; error?: string } => {
+    const trimmed = phone.trim();
+    if (trimmed.startsWith('62')) {
+      const digitsAfter = trimmed.slice(3).replace(/\D/g, '');
+      if (digitsAfter.length < 9 || digitsAfter.length > 11) {
+        return { 
+          valid: false, 
+          error: `⚠️ Invalid WhatsApp Number (Currently: ${digitsAfter.length} digits).` 
+        };
+      }
+    } else {
+      const digitsOnly = trimmed.replace(/\D/g, '');
+      if (digitsOnly.length < 10 || digitsOnly.length > 12) {
+        return { 
+          valid: false, 
+          error: `⚠️ Invalid WhatsApp Number (Currently: ${digitsOnly.length} digits).` 
+        };
+      }
+    }
+    return { valid: true };
   };
 
   // Helper to normalize D1 SQL row to User interface
@@ -242,6 +283,52 @@ export default function App() {
     }
   };
 
+  // Reset Password Handler
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanIdent = resetIdentifier.trim().toUpperCase();
+    const cleanPhone = normalizePhone(resetIdentifier);
+
+    const foundUser = users.find(u => 
+      u.player_id.toUpperCase() === cleanIdent ||
+      u.name.toUpperCase() === cleanIdent ||
+      normalizePhone(u.whatsapp) === cleanPhone
+    );
+
+    if (!foundUser) {
+      showToast('⚠️ No matching user account found for the given ID, Name, or WhatsApp.', 'error');
+      return;
+    }
+
+    if (resetNewPassword.length < 6) {
+      showToast('⚠️ Password must be at least 6 characters long.', 'error');
+      return;
+    }
+
+    if (resetNewPassword !== resetConfirmPassword) {
+      showToast('⚠️ Passwords do not match! Please re-verify.', 'error');
+      return;
+    }
+
+    try {
+      const updatedUser = { ...foundUser, password: resetNewPassword };
+      await fetch('/api/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUser)
+      });
+      setUsers(prev => prev.map(u => u.id === foundUser.id ? updatedUser : u));
+      showToast(`🎉 Password for ${foundUser.name} (${foundUser.player_id}) updated successfully!`, 'success');
+      setAuthMode('login');
+      setResetIdentifier('');
+      setResetNewPassword('');
+      setResetConfirmPassword('');
+    } catch (err: any) {
+      showToast(`⚠️ Password updated locally: ${err.message}`, 'info');
+      setAuthMode('login');
+    }
+  };
+
   // Dynamic Role-based Code Generator (AD001, MB001, SH001)
   const generateRoleCode = (role: UserRole, currentList: User[]): string => {
     const prefix = role === 'SUPER_ADMIN' ? 'AD' : role === 'MEMBER' ? 'MB' : 'SH';
@@ -259,13 +346,29 @@ export default function App() {
       return;
     }
 
+    // Phone number length validation (10-12 without +62; 9-11 with +62)
+    const phoneCheck = validatePhoneNumber(regWhatsapp);
+    if (!phoneCheck.valid) {
+      showToast(phoneCheck.error || 'Invalid phone number format', 'error');
+      return;
+    }
+
+    // Double registration WhatsApp check
+    const normalizedRegPhone = normalizePhone(regWhatsapp);
+    const isDuplicatePhone = users.some(u => normalizePhone(u.whatsapp) === normalizedRegPhone);
+    if (isDuplicatePhone) {
+      showToast('⚠️ This WhatsApp number is already registered! Please sign in or use another number.', 'error');
+      return;
+    }
+
     if (regPassword !== regConfirmPassword) {
       showToast('⚠️ Passwords do not match! Please re-verify.', 'error');
       return;
     }
 
-    if (regPassword.length < 4) {
-      showToast('⚠️ Password must be at least 4 characters long.', 'error');
+    // Password minimal length is 6
+    if (regPassword.length < 6) {
+      showToast('⚠️ Password must be at least 6 characters long.', 'error');
       return;
     }
 
@@ -274,7 +377,7 @@ export default function App() {
       if (regAdminCode.trim() === SECRET_ADMIN_CODE) {
         assignedRole = 'SUPER_ADMIN';
       } else {
-        showToast('⚠️ Invalid Secret Admin Code! Assigned standard account role.', 'error');
+        showToast('⚠️ Invalid Refferal Code! Just leave this field blank.', 'error');
         return;
       }
     }
@@ -309,10 +412,10 @@ export default function App() {
         throw new Error(errJson.error || `HTTP ${res.status}`);
       }
 
-      showToast(`🎉 Account ${generatedCode} registered & written to D1!`, 'success');
+      showToast(`🎉 Account ${generatedCode} has been registered!`, 'success');
     } catch (err: any) {
       console.warn('D1 sync warning:', err);
-      showToast(`⚠️ D1 notice: ${err.message || 'Saved locally'}. Session active!`, 'info');
+      showToast(`⚠️ DB notice: ${err.message || 'Saved locally'}. Session active!`, 'info');
     }
 
     const newUser: User = {
@@ -463,9 +566,9 @@ export default function App() {
         </div>
       </header>
 
-      {/* --- TOPMOST FLOATING TOAST NOTIFICATION LAYER (z-[99999]) --- */}
+      {/* --- BOTTOM FLOATING TOAST NOTIFICATION LAYER (z-[99999]) --- */}
       {toastMessage && (
-        <div className="fixed top-5 right-5 sm:top-8 sm:right-8 z-[99999] max-w-md w-full pointer-events-auto">
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 sm:bottom-8 z-[99999] max-w-md w-full px-4 pointer-events-auto">
           <div className={`p-4 rounded-2xl shadow-2xl backdrop-blur-2xl border-2 flex items-start space-x-3 transition-all animate-[bounce_3s_infinite] ${
             toastMessage.type === 'error'
               ? 'bg-rose-950/95 border-rose-500 text-rose-100 shadow-rose-950/80'
@@ -593,12 +696,14 @@ export default function App() {
                 <ShieldCheck className="w-6 h-6 text-emerald-400" />
               </div>
               <h2 className="text-xl font-bold text-white">
-                {authMode === 'login' ? 'Sign In to SmashHub' : 'Register New Player Account'}
+                {authMode === 'login' ? 'Sign In to SmashHub' : authMode === 'register' ? 'Register New Player Account' : 'Reset Password'}
               </h2>
               <p className="text-xs text-slate-400 mt-1">
                 {authMode === 'login' 
                   ? 'Welcome Back' 
-                  : 'Create a new account profile'}
+                  : authMode === 'register'
+                  ? 'Create a new account profile'
+                  : 'Enter your ID, Name, or WhatsApp to reset your password'}
               </p>
             </div>
 
@@ -620,10 +725,19 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center space-x-1">
-                    <Key className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Password</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-slate-300 flex items-center space-x-1">
+                      <Key className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Password</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode('forgot')}
+                      className="text-[11px] text-emerald-400 hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
                   <input
                     type="password"
                     required
@@ -639,6 +753,54 @@ export default function App() {
                   className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-lg text-sm shadow-lg shadow-emerald-500/20 transition"
                 >
                   Sign In
+                </button>
+              </form>
+            ) : authMode === 'forgot' ? (
+              <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center space-x-1">
+                    <UserIcon className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>User ID, Full Name, or WhatsApp</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="SH001 / Kevin Sanjaya / 08123456789"
+                    value={resetIdentifier}
+                    onChange={e => setResetIdentifier(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">New Password (min 6 chars)</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={resetNewPassword}
+                    onChange={e => setResetNewPassword(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">Confirm New Password</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={resetConfirmPassword}
+                    onChange={e => setResetConfirmPassword(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-lg text-sm shadow-lg shadow-emerald-500/20 transition"
+                >
+                  Update Password
                 </button>
               </form>
             ) : (
@@ -666,7 +828,7 @@ export default function App() {
                   <input
                     type="tel"
                     required
-                    placeholder="+6281234567890"
+                    placeholder="628123456789"
                     value={regWhatsapp}
                     onChange={e => setRegWhatsapp(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
@@ -675,7 +837,7 @@ export default function App() {
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">Password *</label>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">Password * (min 6 chars)</label>
                     <input
                       type="password"
                       required
@@ -761,7 +923,7 @@ export default function App() {
               onClick={() => setNewlyRegisteredId(null)}
               className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition"
             >
-              Got It & Continue
+              Continue
             </button>
           </div>
         </div>
