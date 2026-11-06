@@ -1,12 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
 import { 
-  Activity, Trophy, Calendar, Users, CreditCard, Zap, Play, 
-  CheckCircle2, Clock, AlertCircle, BarChart3, Plus, Search, Settings, 
-  ShieldCheck, Database, LogOut, UserCheck, Shuffle, 
-  ChevronRight, RefreshCw, DollarSign, Check, X, Flame, Scale, ChevronDown, Filter
+  Activity, Trophy, Calendar, Users, CreditCard, Zap, 
+  CheckCircle2, BarChart3, ShieldCheck, LogOut, UserCheck, 
+  Shuffle, ChevronRight, Check, X, Flame
 } from 'lucide-react';
 import { 
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area 
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, AreaChart, Area 
 } from 'recharts';
 
 // --- TYPES & INTERFACES ---
@@ -325,7 +324,6 @@ export default function App() {
             users={users} 
             courts={courts} 
             matches={matches} 
-            bookings={bookings} 
             invoices={invoices}
             setActiveTab={setActiveTab}
           />
@@ -373,7 +371,6 @@ export default function App() {
           <BillingView 
             invoices={invoices} 
             setInvoices={setInvoices} 
-            currentUser={currentUser}
             showToast={showToast}
           />
         )}
@@ -489,9 +486,9 @@ export default function App() {
 // 1. DASHBOARD COMPONENT
 // ==========================================
 function DashboardView({ 
-  users, courts, matches, bookings, invoices, setActiveTab 
+  users, courts, matches, invoices, setActiveTab 
 }: { 
-  users: User[]; courts: Court[]; matches: Match[]; bookings: Booking[]; invoices: Invoice[]; setActiveTab: (tab: any) => void; 
+  users: User[]; courts: Court[]; matches: Match[]; invoices: Invoice[]; setActiveTab: (tab: any) => void; 
 }) {
   const activeCourts = courts.filter(c => c.status === 'Occupied').length;
   const pendingDuesTotal = invoices.filter(i => i.status === 'Pending').reduce((acc, curr) => acc + curr.amount, 0);
@@ -622,7 +619,7 @@ function DashboardView({
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={REVENUE_DATA}>
                 <XAxis dataKey="day" stroke="#64748b" fontSize={12} tickLine={false} />
-                <YAxis stroke="#64748b" fontSize={12} tickLine={false} tickFormatter={v => `$${v}`} />
+                <YAxis stroke="#64748b" fontSize={12} tickLine={false} tickFormatter={(v: number) => `$${v}`} />
                 <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#fff' }} />
                 <Bar dataKey="revenue" fill="#06b6d4" radius={[6, 6, 0, 0]} />
               </BarChart>
@@ -1502,9 +1499,9 @@ function GradingView({
 // 6. BILLING & PAYMENTS SYSTEM
 // ==========================================
 function BillingView({ 
-  invoices, setInvoices, currentUser, showToast 
+  invoices, setInvoices, showToast 
 }: { 
-  invoices: Invoice[]; setInvoices: React.Dispatch<React.SetStateAction<Invoice[]>>; currentUser: User | null; showToast: (msg: string) => void;
+  invoices: Invoice[]; setInvoices: React.Dispatch<React.SetStateAction<Invoice[]>>; showToast: (msg: string) => void;
 }) {
   const handleMarkAsPaid = (invId: string) => {
     setInvoices(invoices.map(i => i.id === invId ? { ...i, status: 'Paid', paymentMethod: 'Stripe Mock Auto' } : i));
