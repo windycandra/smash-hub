@@ -1,8 +1,7 @@
-// functions/api/[[route]].js - Cloudflare Pages Function D1 Router
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
-  const pathname = url.pathname.replace(/\/$/, ''); // strip trailing slash
+  const pathname = url.pathname.replace(/\/$/, '');
 
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -17,7 +16,7 @@ export async function onRequest(context) {
 
   if (!env.DB) {
     return new Response(JSON.stringify({ 
-      error: 'D1 binding missing! Please bind your D1 database as DB under Cloudflare Pages Settings -> Functions.' 
+      error: 'D1 binding missing! Bind database as DB under Settings -> Functions.' 
     }), { status: 500, headers });
   }
 
