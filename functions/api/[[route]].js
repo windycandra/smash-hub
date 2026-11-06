@@ -2,16 +2,28 @@
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
-  const path = url.pathname.replace('/api/', '');
+  const pathname = url.pathname.replace(/\/$/, ''); // strip trailing slash
 
   const headers = {
     'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
     'Content-Type': 'application/json',
   };
 
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { headers });
+  }
+
+  if (!env.DB) {
+    return new Response(JSON.stringify({ 
+      error: 'D1 binding missing! Please bind your D1 database as DB under Cloudflare Pages Settings -> Functions.' 
+    }), { status: 500, headers });
+  }
+
   try {
     // GET /api/users
-    if (path === 'users' && request.method === 'GET') {
+    if (pathname === '/api/users' && request.method === 'GET') {
       const { results } = await env.DB.prepare("SELECT * FROM users ORDER BY elo DESC").all();
       const mapped = results.map(u => ({
         id: u.id,
@@ -30,17 +42,29 @@ export async function onRequest(context) {
       return new Response(JSON.stringify(mapped), { headers });
     }
 
-    // POST /api/users (Registration)
-    if (path === 'users' && request.method === 'POST') {
+    // POST /api/users (User Registration)
+    if (pathname === '/api/users' && request.method === 'POST') {
       const data = await request.json();
       await env.DB.prepare(
-        "INSERT INTO users (id, player_id, full_name, whatsapp_number, password_hash, role, grade, elo, avatar) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-      ).bind(data.id, data.playerId, data.name, data.whatsapp, 'defaultpass', data.role, data.grade, data.elo, data.avatar).run();
-      return new Response(JSON.stringify({ success: true }), { headers });
+        `INSERT INTO users (id, player_id, full_name, whatsapp_number, password_hash, role, grade, elo, avatar)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        data.id, 
+        data.playerId, 
+        data.name, 
+        data.whatsapp, 
+        data.password || 'default123', 
+        data.role, 
+        data.grade || 'D (Beginner)', 
+        data.elo || 1200, 
+        data.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'
+      ).run();
+
+      return new Response(JSON.stringify({ success: true, playerId: data.playerId }), { headers });
     }
 
     // GET /api/courts
-    if (path === 'courts' && request.method === 'GET') {
+    if (pathname === '/api/courts' && request.method === 'GET') {
       const { results } = await env.DB.prepare("SELECT * FROM courts ORDER BY id ASC").all();
       const mapped = results.map(c => ({
         id: c.id,
@@ -53,7 +77,7 @@ export async function onRequest(context) {
     }
 
     // GET /api/bookings
-    if (path === 'bookings' && request.method === 'GET') {
+    if (pathname === '/api/bookings' && request.method === 'GET') {
       const { results } = await env.DB.prepare("SELECT * FROM bookings ORDER BY created_at DESC").all();
       const mapped = results.map(b => ({
         id: b.id,
@@ -72,15 +96,17 @@ export async function onRequest(context) {
     }
 
     // POST /api/bookings
-    if (path === 'bookings' && request.method === 'POST') {
+    if (pathname === '/api/bookings' && request.method === 'POST') {
       const b = await request.json();
       await env.DB.prepare(
-        "INSERT INTO bookings (id, court_id, court_name, court_code, player_name, player_id, booking_date, time_slot, type, payment_status, fee) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        `INSERT INTO bookings (id, court_id, court_name, court_code, player_name, player_id, booking_date, time_slot, type, payment_status, fee) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(b.id, b.courtId, b.courtName, b.courtCode, b.playerName, b.playerId, b.date, b.timeSlot, b.type, b.paymentStatus, b.fee).run();
+
       return new Response(JSON.stringify({ success: true }), { headers });
     }
 
-    return new Response(JSON.stringify([]), { headers });
+    return new Response(JSON.stringify({ error: `Route not found: ${pathname}` }), { status: 404, headers });
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers });
   }
