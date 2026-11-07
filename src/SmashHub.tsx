@@ -1001,7 +1001,7 @@ function DashboardView({
               <>
               <button
                 onClick={() => setIsAuthOpen(true)}
-                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-5 py-2.5 rounded-xl font-extrabold text-sm shadow-lg shadow-emerald-500/20 transition flex items-center space-x-2"
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl font-extrabold text-sm shadow-lg shadow-emerald-500/20 transition flex items-center space-x-2"
               >
                 <Lock className="w-4 h-4" />
                 <span>Sign In to Unlock Full Access</span>
