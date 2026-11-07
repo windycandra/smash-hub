@@ -515,20 +515,21 @@ export default function App() {
                 title={`Database Status: ${dbStatus}. Click to refresh.`}
                 className="hidden lg:flex items-center space-x-1.5 bg-slate-950 border border-slate-800 px-2.5 py-1 rounded-full text-[11px] font-mono hover:border-slate-700 transition"
               >
+                
                 <Database className={`w-3.5 h-3.5 ${
                   dbStatus === 'Connected' ? 'text-emerald-400' :
                   dbStatus === 'Syncing' ? 'text-amber-400 animate-spin' :
                   dbStatus === 'Empty' ? 'text-cyan-400' : 'text-rose-400'
                 }`} />
-                <span className="text-slate-300">DB :</span>
-                <span className={
-                  dbStatus === 'Connected' ? 'text-emerald-400 font-semibold' :
-                  dbStatus === 'Syncing' ? 'text-amber-400 font-semibold' :
-                  dbStatus === 'Empty' ? 'text-cyan-400 font-semibold' : 'text-rose-400 font-semibold'
-                }>
-                  {dbStatus}
+                <span className={`font-semibold ${
+                  dbStatus === 'Connected' ? 'text-emerald-400' :
+                  dbStatus === 'Syncing' ? 'text-amber-400' :
+                  dbStatus === 'Empty' ? 'text-cyan-400' : 'text-rose-400'
+                }`}>
+                  DB
                 </span>
               </button>
+              
               {currentUser ? (
                 <div className="flex items-center space-x-3 bg-slate-800/80 p-1.5 pl-3 rounded-full border border-slate-700/60">
                   <div className="text-right hidden sm:block">
