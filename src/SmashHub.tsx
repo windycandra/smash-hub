@@ -997,11 +997,11 @@ function DashboardView({
                   <span>Book Court</span>
                 </button>
                 <button
-                  onClick={() => setActiveTab('matchmaker')}
+                  onClick={() => setActiveTab('matchmaker1')}
                   className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2 rounded-xl font-semibold text-sm transition flex items-center space-x-2"
                 >
                   <Shuffle className="w-4 h-4 text-cyan-400" />
-                  <span>Auto Pair</span>
+                  <span>Join Group</span>
                 </button>
               </>
             ) : (
@@ -1010,7 +1010,7 @@ function DashboardView({
                 className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-5 py-2.5 rounded-xl font-extrabold text-sm shadow-lg shadow-emerald-500/20 transition flex items-center space-x-2"
               >
                 <Lock className="w-4 h-4" />
-                <span>Sign In with Player ID to Unlock Full Access</span>
+                <span>Sign In to Unlock Full Access</span>
               </button>
             )}
           </div>
@@ -1018,7 +1018,7 @@ function DashboardView({
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between">
           <div>
             <p className="text-xs text-slate-400 uppercase font-semibold">Court Occupancy</p>
@@ -1065,7 +1065,7 @@ function DashboardView({
       </div>
 
       {/* Analytics Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-2 gap-6">
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -1128,7 +1128,7 @@ function DashboardView({
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {courts.slice(0, 3).map(court => {
             const activeMatch = matches.find(m => m.courtId === court.id && m.status === 'Live');
             return (
