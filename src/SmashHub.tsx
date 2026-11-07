@@ -508,6 +508,41 @@ export default function App() {
               })}
             </nav>
 
+
+        {/* Mobile Tab Navigation */}
+        <div className="md:hidden overflow-x-auto border-t border-slate-800 px-2 py-2 flex space-x-1 scrollbar-none">
+          {[
+            { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+            { id: 'booking', label: 'Schedule', icon: Calendar },
+            { id: 'matchmaker', label: 'Matchmaker', icon: Shuffle },
+            { id: 'scoring', label: 'Live Scoring', icon: Activity },
+            { id: 'billing', label: 'Billing', icon: CreditCard },
+            { id: 'users', label: 'User', icon: UserCog },
+            { id: 'grading', label: 'Grading', icon: Trophy },
+          ].map(tab => {
+            const isAllowed = canAccessTab(tab.id);
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+
+            if (!isAllowed) return null;
+
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center space-x-1 px-3 py-1.5 rounded-md text-xs whitespace-nowrap ${
+                  isActive ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-semibold' : 'text-slate-400'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+
+
             {/* Profile / Controls */}
             <div className="flex items-center space-x-3">
               <button 
