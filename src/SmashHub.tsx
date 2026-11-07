@@ -1065,7 +1065,7 @@ function DashboardView({
       </div>
 
       {/* Analytics Charts Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
