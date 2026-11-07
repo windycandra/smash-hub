@@ -1373,32 +1373,655 @@ function UserManagementView({ users, setUsers, showToast, fetchD1Data }: any) {
   );
 }
 
-function BookingView({ bookings }: any) {
+// 3 BOOKING MANAGEMENT
+function BookingView({ 
+  courts, bookings, setBookings, currentUser, showToast 
+}: { 
+  courts: Court[]; bookings: Booking[]; setBookings: React.Dispatch<React.SetStateAction<Booking[]>>; currentUser: User | null; showToast: (msg: string) => void;
+}) {
+  const [selectedCourt, setSelectedCourt] = useState<Court>(courts[0]);
+  const [bookingDate, setBookingDate] = useState('2026-11-06');
+  const [selectedSlot, setSelectedSlot] = useState('18:00 - 19:00');
+  const [bookingType, setBookingType] = useState<'Casual Play' | 'Tournament' | 'Coaching Session'>('Casual Play');
+
+  const timeSlots = [
+    '08:00 - 09:00', '09:00 - 10:00', '10:00 - 11:00', 
+    '15:00 - 16:00', '16:00 - 17:00', '17:00 - 18:00',
+    '18:00 - 19:00', '19:00 - 20:00', '20:00 - 21:00'
+  ];
+
+  const handleCreateBooking = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) {
+      showToast('Please sign in to make court reservations!');
+      return;
+    }
+
+    // Check conflict
+    const isConflict = bookings.some(b => 
+      b.courtId === selectedCourt.id && b.date === bookingDate && b.timeSlot === selectedSlot
+    );
+
+    if (isConflict) {
+      showToast('⚠️ Slot already booked! Please select another time slot.');
+      return;
+    }
+
+    const newBooking: Booking = {
+      id: `bk-${Date.now()}`,
+      courtId: selectedCourt.id,
+      courtName: selectedCourt.name,
+      playerName: currentUser.name,
+      date: bookingDate,
+      timeSlot: selectedSlot,
+      type: bookingType,
+      paymentStatus: 'Paid',
+      fee: selectedCourt.type === 'Synthetic Wooden' ? 35 : 25
+    };
+
+    setBookings([newBooking, ...bookings]);
+    showToast(`✅ Reserved ${selectedCourt.name} for ${bookingDate} [${selectedSlot}]`);
+  };
+
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-slate-300">
-      <h2 className="text-lg font-bold text-white mb-4">Courts & Reservations</h2>
-      <p className="text-xs text-slate-400">Total bookings in database: {bookings.length}</p>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-white flex items-center space-x-2">
+            <Calendar className="w-5 h-5 text-emerald-400" />
+            <span>Court Booking & Schedule Console</span>
+          </h2>
+          <p className="text-xs text-slate-400">Reserve synthetic & standard courts with real-time slot verification</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Court Cards Selection */}
+        <div className="lg:col-span-2 space-y-4">
+          <h3 className="text-sm font-semibold text-slate-300">Available Badminton Courts</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {courts.map(court => {
+              const isSelected = selectedCourt.id === court.id;
+              return (
+                <div 
+                  key={court.id}
+                  onClick={() => setSelectedCourt(court)}
+                  className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                    isSelected 
+                      ? 'bg-slate-800/90 border-emerald-500 ring-2 ring-emerald-500/30' 
+                      : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-bold text-slate-100 text-sm">{court.name}</h4>
+                      <p className="text-xs text-slate-400 mt-0.5">{court.type}</p>
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono ${
+                      court.status === 'Available' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
+                      court.status === 'Occupied' ? 'bg-cyan-950 text-cyan-400 border border-cyan-800' :
+                      'bg-rose-950 text-rose-400 border border-rose-800'
+                    }`}>
+                      {court.status}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+                    <span>💡 {court.lighting}</span>
+                    <span className="font-mono text-emerald-400 font-semibold">
+                      {court.type === 'Synthetic Wooden' ? '$35/hr' : '$25/hr'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Bookings Table */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 mt-6">
+            <h3 className="text-sm font-bold text-white">Upcoming Club Reservations</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-300">
+                <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-mono border-b border-slate-800">
+                  <tr>
+                    <th className="p-3">Court</th>
+                    <th className="p-3">Reserved By</th>
+                    <th className="p-3">Date & Time</th>
+                    <th className="p-3">Session Type</th>
+                    <th className="p-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {bookings.map(b => (
+                    <tr key={b.id} className="hover:bg-slate-800/40">
+                      <td className="p-3 font-semibold text-slate-200">{b.courtName}</td>
+                      <td className="p-3">{b.playerName}</td>
+                      <td className="p-3 font-mono">{b.date} • {b.timeSlot}</td>
+                      <td className="p-3">
+                        <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-[11px] border border-slate-700">
+                          {b.type}
+                        </span>
+                      </td>
+                      <td className="p-3">
+                        <span className="text-emerald-400 font-mono font-medium">{b.paymentStatus} (${b.fee})</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Reservation Form */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 h-fit">
+          <div className="border-b border-slate-800 pb-3">
+            <h3 className="font-bold text-white text-base">Confirm Reservation</h3>
+            <p className="text-xs text-slate-400">Selected: <span className="text-emerald-400 font-medium">{selectedCourt.name}</span></p>
+          </div>
+
+          <form onSubmit={handleCreateBooking} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Select Date</label>
+              <input 
+                type="date" 
+                value={bookingDate}
+                onChange={e => setBookingDate(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Select Time Slot</label>
+              <div className="grid grid-cols-2 gap-2">
+                {timeSlots.map(slot => {
+                  const isBooked = bookings.some(b => b.courtId === selectedCourt.id && b.date === bookingDate && b.timeSlot === slot);
+                  const isSelected = selectedSlot === slot;
+                  return (
+                    <button
+                      type="button"
+                      key={slot}
+                      disabled={isBooked}
+                      onClick={() => setSelectedSlot(slot)}
+                      className={`py-1.5 px-2 text-xs rounded-lg font-mono text-center transition ${
+                        isBooked ? 'bg-slate-950 text-slate-600 line-through cursor-not-allowed border border-slate-900' :
+                        isSelected ? 'bg-emerald-500 text-slate-950 font-bold' :
+                        'bg-slate-950 border border-slate-800 text-slate-300 hover:border-slate-700'
+                      }`}
+                    >
+                      {slot}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Activity Category</label>
+              <select
+                value={bookingType}
+                onChange={e => setBookingType(e.target.value as any)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+              >
+                <option value="Casual Play">Casual Play / Sparring</option>
+                <option value="Tournament">Tournament Round</option>
+                <option value="Coaching Session">Personal Coaching</option>
+              </select>
+            </div>
+
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5 text-xs">
+              <div className="flex justify-between text-slate-400">
+                <span>Base Rate:</span>
+                <span className="font-mono text-slate-200">{selectedCourt.type === 'Synthetic Wooden' ? '$35.00' : '$25.00'}</span>
+              </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Shuttlecock Pack Addon:</span>
+                <span className="font-mono text-slate-200">$0.00 (Included)</span>
+              </div>
+              <div className="flex justify-between text-slate-200 font-bold pt-1.5 border-t border-slate-800">
+                <span>Total Fee:</span>
+                <span className="font-mono text-emerald-400 text-sm">
+                  ${selectedCourt.type === 'Synthetic Wooden' ? '35.00' : '25.00'}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2.5 rounded-xl text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center space-x-2"
+            >
+              <Check className="w-4 h-4" />
+              <span>Confirm & Lock Booking</span>
+            </button>
+          </form>
+        </div>
+
+      </div>
     </div>
   );
 }
 
-function MatchMakerView({ users }: any) {
+
+// 4.MATCHMAKER
+
+function MatchMakerView({ 
+  users, courts, matches, setMatches, setCourts, showToast, setActiveTab 
+}: { 
+  users: User[]; courts: Court[]; matches: Match[]; setMatches: React.Dispatch<React.SetStateAction<Match[]>>; setCourts: React.Dispatch<React.SetStateAction<Court[]>>; showToast: (msg: string) => void; setActiveTab: (tab: any) => void;
+}) {
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>(users.map(u => u.id));
+  const [matchFormat, setMatchFormat] = useState<'Doubles' | 'Singles'>('Doubles');
+  const [targetCourtId, setTargetCourtId] = useState<number>(3);
+
+  const togglePlayerSelect = (id: string) => {
+    if (selectedPlayerIds.includes(id)) {
+      setSelectedPlayerIds(selectedPlayerIds.filter(pid => pid !== id));
+    } else {
+      setSelectedPlayerIds([...selectedPlayerIds, id]);
+    }
+  };
+
+  const handleGeneratePairings = () => {
+    const activePlayers = users.filter(u => selectedPlayerIds.includes(u.id));
+
+    if (matchFormat === 'Doubles' && activePlayers.length < 4) {
+      showToast('⚠️ Need at least 4 players selected for Doubles matchmaking!');
+      return;
+    }
+    if (matchFormat === 'Singles' && activePlayers.length < 2) {
+      showToast('⚠️ Need at least 2 players selected for Singles matchmaking!');
+      return;
+    }
+
+    // Sort by ELO for balanced pairing
+    const sorted = [...activePlayers].sort((a, b) => b.elo - a.elo);
+
+    let t1: string[] = [];
+    let t2: string[] = [];
+
+    if (matchFormat === 'Doubles') {
+      // Balanced ELO algorithm: Pair Highest (1) + Lowest (4) vs Middle (2 + 3)
+      t1 = [sorted[0].name, sorted[3].name];
+      t2 = [sorted[1].name, sorted[2].name];
+    } else {
+      t1 = [sorted[0].name];
+      t2 = [sorted[1].name];
+    }
+
+    const newMatch: Match = {
+      id: `m-${Date.now().toString().slice(-4)}`,
+      courtId: targetCourtId,
+      team1: t1,
+      team2: t2,
+      score1: [0],
+      score2: [0],
+      currentSet: 1,
+      status: 'Live',
+      serverTeam: 1,
+      startTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    setMatches([newMatch, ...matches]);
+
+    // Update court status
+    setCourts(courts.map(c => c.id === targetCourtId ? { ...c, status: 'Occupied', currentMatchId: newMatch.id } : c));
+
+    showToast(`🏸 Balanced ${matchFormat} match generated & dispatched to Court ${targetCourtId}!`);
+    setActiveTab('scoring');
+  };
+
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-slate-300">
-      <h2 className="text-lg font-bold text-white mb-4">AI ELO Matchmaker</h2>
-      <p className="text-xs text-slate-400">Active player pool: {users.length} players</p>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-white flex items-center space-x-2">
+            <Shuffle className="w-5 h-5 text-cyan-400" />
+            <span>AI ELO Matchmaker & Rotation Hub</span>
+          </h2>
+          <p className="text-xs text-slate-400">Algorithmic player pairing to guarantee competitive parity & fair court rotation</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* Player Pool Selector */}
+        <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-sm font-bold text-white">Select Player Pool ({selectedPlayerIds.length} Selected)</h3>
+            <button 
+              onClick={() => setSelectedPlayerIds(selectedPlayerIds.length === users.length ? [] : users.map(u => u.id))}
+              className="text-xs text-cyan-400 hover:underline"
+            >
+              {selectedPlayerIds.length === users.length ? 'Deselect All' : 'Select All Members'}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {users.map(player => {
+              const isSelected = selectedPlayerIds.includes(player.id);
+              return (
+                <div
+                  key={player.id}
+                  onClick={() => togglePlayerSelect(player.id)}
+                  className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition ${
+                    isSelected 
+                      ? 'bg-slate-800 border-cyan-500/60 ring-1 ring-cyan-500/30' 
+                      : 'bg-slate-950 border-slate-800/80 opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <img src={player.avatar} alt="Avatar" className="w-9 h-9 rounded-full object-cover ring-1 ring-slate-700" />
+                    <div>
+                      <h4 className="text-xs font-bold text-white">{player.name}</h4>
+                      <p className="text-[10px] text-slate-400">{player.grade} • <span className="text-emerald-400 font-mono">{player.elo} ELO</span></p>
+                    </div>
+                  </div>
+                  <div className={`w-5 h-5 rounded-md flex items-center justify-center border ${
+                    isSelected ? 'bg-cyan-500 border-cyan-400 text-slate-950' : 'border-slate-700'
+                  }`}>
+                    {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Match Generator Controls */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-5 h-fit">
+          <div className="border-b border-slate-800 pb-3">
+            <h3 className="font-bold text-white text-base">Match Config</h3>
+            <p className="text-xs text-slate-400">Pairing strategy: ELO Parity Balancing</p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-2">Game Format</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMatchFormat('Doubles')}
+                  className={`py-2 text-xs rounded-xl font-bold transition border ${
+                    matchFormat === 'Doubles' 
+                      ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20' 
+                      : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                  }`}
+                >
+                  Doubles (2v2)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMatchFormat('Singles')}
+                  className={`py-2 text-xs rounded-xl font-bold transition border ${
+                    matchFormat === 'Singles' 
+                      ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20' 
+                      : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                  }`}
+                >
+                  Singles (1v1)
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Assign to Court</label>
+              <select
+                value={targetCourtId}
+                onChange={e => setTargetCourtId(Number(e.target.value))}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+              >
+                {courts.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.status})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2 text-xs">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Estimated Fair Score:</span>
+              <div className="flex items-center justify-between text-slate-300 font-mono">
+                <span>Team A Avg ELO:</span>
+                <span className="text-cyan-400">~1780</span>
+              </div>
+              <div className="flex items-center justify-between text-slate-300 font-mono">
+                <span>Team B Avg ELO:</span>
+                <span className="text-emerald-400">~1765</span>
+              </div>
+            </div>
+
+            <button
+              onClick={handleGeneratePairings}
+              className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold py-3 rounded-xl text-xs shadow-lg shadow-cyan-500/20 transition flex items-center justify-center space-x-2"
+            >
+              <Zap className="w-4 h-4" />
+              <span>Generate & Start Match</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }
 
-function ScoringView({ matches }: any) {
+// 5. LIVE SCORING 
+
+function ScoringView({ 
+  matches, setMatches, courts, setCourts, users, setUsers, showToast 
+}: { 
+  matches: Match[]; setMatches: React.Dispatch<React.SetStateAction<Match[]>>; courts: Court[]; setCourts: React.Dispatch<React.SetStateAction<Court[]>>; users: User[]; setUsers: React.Dispatch<React.SetStateAction<User[]>>; showToast: (msg: string) => void;
+}) {
+  const liveMatches = matches.filter(m => m.status === 'Live');
+  const [selectedMatchId, setSelectedMatchId] = useState<string>(liveMatches[0]?.id || matches[0]?.id);
+
+  const activeMatch = matches.find(m => m.id === selectedMatchId);
+
+  // Score Increment Logic (BWF Standard Rally Point System)
+  const addPoint = (team: 1 | 2) => {
+    if (!activeMatch || activeMatch.status === 'Completed') return;
+
+    const currentSetIdx = activeMatch.currentSet - 1;
+    const scores1 = [...activeMatch.score1];
+    const scores2 = [...activeMatch.score2];
+
+    if (team === 1) {
+      scores1[currentSetIdx] = (scores1[currentSetIdx] || 0) + 1;
+    } else {
+      scores2[currentSetIdx] = (scores2[currentSetIdx] || 0) + 1;
+    }
+
+    const s1 = scores1[currentSetIdx];
+    const s2 = scores2[currentSetIdx];
+
+    // Check Set Victory (21 pts, win by 2, cap at 30)
+    let setWinner: 1 | 2 | null = null;
+    if ((s1 >= 21 || s2 >= 21) && Math.abs(s1 - s2) >= 2) {
+      setWinner = s1 > s2 ? 1 : 2;
+    } else if (s1 === 30 || s2 === 30) {
+      setWinner = s1 === 30 ? 1 : 2;
+    }
+
+    if (setWinner) {
+      // Check overall match winner (Best of 3)
+      const setsWon1 = scores1.filter((s, idx) => s > (scores2[idx] || 0) && (s >= 21 || scores2[idx] >= 21)).length;
+      const setsWon2 = scores2.filter((s, idx) => s > (scores1[idx] || 0) && (s >= 21 || scores1[idx] >= 21)).length;
+
+      if (setsWon1 === 2 || setsWon2 === 2) {
+        // Final Match Complete!
+        const matchWinner = setsWon1 === 2 ? 1 : 2;
+        setMatches(matches.map(m => m.id === activeMatch.id ? {
+          ...m,
+          score1: scores1,
+          score2: scores2,
+          status: 'Completed',
+          winner: matchWinner
+        } : m));
+
+        // Free up court
+        setCourts(courts.map(c => c.id === activeMatch.courtId ? { ...c, status: 'Available', currentMatchId: undefined } : c));
+
+        // Automatic ELO Adjustment simulation
+        const winningTeamNames = matchWinner === 1 ? activeMatch.team1 : activeMatch.team2;
+        setUsers(users.map(u => winningTeamNames.includes(u.name) ? { ...u, elo: u.elo + 25, wins: u.wins + 1, matchesPlayed: u.matchesPlayed + 1 } : u));
+
+        showToast(`🏆 Match Finalized! Team ${matchWinner} Wins! ELO updated.`);
+        return;
+      } else {
+        // Advance to next set
+        showToast(`Set ${activeMatch.currentSet} won by Team ${setWinner}! Moving to Set ${activeMatch.currentSet + 1}.`);
+        scores1.push(0);
+        scores2.push(0);
+        setMatches(matches.map(m => m.id === activeMatch.id ? {
+          ...m,
+          score1: scores1,
+          score2: scores2,
+          currentSet: m.currentSet + 1,
+          serverTeam: setWinner
+        } : m));
+        return;
+      }
+    }
+
+    setMatches(matches.map(m => m.id === activeMatch.id ? {
+      ...m,
+      score1: scores1,
+      score2: scores2,
+      serverTeam: team
+    } : m));
+  };
+
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-slate-300">
-      <h2 className="text-lg font-bold text-white mb-4">Live Scorekeeper</h2>
-      <p className="text-xs text-slate-400">Matches available: {matches.length}</p>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-white flex items-center space-x-2">
+            <Activity className="w-5 h-5 text-emerald-400" />
+            <span>Digital BWF Scoreboard & Referee Console</span>
+          </h2>
+          <p className="text-xs text-slate-400">Rally point system, deuce detection & server indicator</p>
+        </div>
+      </div>
+
+      {/* Match Selector Tabs */}
+      <div className="flex space-x-2 overflow-x-auto pb-2">
+        {matches.map(m => (
+          <button
+            key={m.id}
+            onClick={() => setSelectedMatchId(m.id)}
+            className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition border ${
+              selectedMatchId === m.id
+                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'
+                : 'bg-slate-900 text-slate-400 border-slate-800 hover:border-slate-700'
+            }`}
+          >
+            Match #{m.id} (Court {m.courtId}) {m.status === 'Live' && '• LIVE'}
+          </button>
+        ))}
+      </div>
+
+      {activeMatch ? (
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-8 shadow-2xl relative overflow-hidden">
+          
+          {/* Top Info Bar */}
+          <div className="flex justify-between items-center text-xs text-slate-400 border-b border-slate-800 pb-4">
+            <span className="font-mono bg-slate-950 px-3 py-1 rounded-full border border-slate-800">
+              Court {activeMatch.courtId} • Set {activeMatch.currentSet} / 3
+            </span>
+            <span className={`font-mono px-3 py-1 rounded-full text-[11px] font-bold ${
+              activeMatch.status === 'Live' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800 animate-pulse' : 'bg-slate-800 text-slate-300'
+            }`}>
+              {activeMatch.status.toUpperCase()}
+            </span>
+          </div>
+
+          {/* Big Scoreboard Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+            
+            {/* Team 1 Score Card */}
+            <div className={`p-6 rounded-2xl border transition-all text-center space-y-4 ${
+              activeMatch.serverTeam === 1 
+                ? 'bg-gradient-to-b from-slate-900 to-slate-950 border-emerald-500/60 ring-2 ring-emerald-500/20' 
+                : 'bg-slate-950 border-slate-800/80'
+            }`}>
+              <div className="flex items-center justify-center space-x-2">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">TEAM 1</span>
+                {activeMatch.serverTeam === 1 && (
+                  <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-mono px-2 py-0.5 rounded border border-emerald-500/30">
+                    SERVING 🏸
+                  </span>
+                )}
+              </div>
+              <h3 className="text-lg font-extrabold text-white truncate">{activeMatch.team1.join(' / ')}</h3>
+              
+              <div className="text-7xl sm:text-8xl font-black font-mono text-emerald-400 tracking-tighter my-2">
+                {activeMatch.score1[activeMatch.currentSet - 1] ?? 0}
+              </div>
+
+              <button
+                disabled={activeMatch.status === 'Completed'}
+                onClick={() => addPoint(1)}
+                className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 text-slate-950 font-black py-4 rounded-xl text-base shadow-lg shadow-emerald-500/20 active:scale-95 transition"
+              >
+                +1 POINT (TEAM 1)
+              </button>
+            </div>
+
+            {/* Team 2 Score Card */}
+            <div className={`p-6 rounded-2xl border transition-all text-center space-y-4 ${
+              activeMatch.serverTeam === 2 
+                ? 'bg-gradient-to-b from-slate-900 to-slate-950 border-cyan-500/60 ring-2 ring-cyan-500/20' 
+                : 'bg-slate-950 border-slate-800/80'
+            }`}>
+              <div className="flex items-center justify-center space-x-2">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">TEAM 2</span>
+                {activeMatch.serverTeam === 2 && (
+                  <span className="bg-cyan-500/20 text-cyan-400 text-[10px] font-mono px-2 py-0.5 rounded border border-cyan-500/30">
+                    SERVING 🏸
+                  </span>
+                )}
+              </div>
+              <h3 className="text-lg font-extrabold text-white truncate">{activeMatch.team2.join(' / ')}</h3>
+              
+              <div className="text-7xl sm:text-8xl font-black font-mono text-cyan-400 tracking-tighter my-2">
+                {activeMatch.score2[activeMatch.currentSet - 1] ?? 0}
+              </div>
+
+              <button
+                disabled={activeMatch.status === 'Completed'}
+                onClick={() => addPoint(2)}
+                className="w-full bg-cyan-500 hover:bg-cyan-400 disabled:opacity-30 text-slate-950 font-black py-4 rounded-xl text-base shadow-lg shadow-cyan-500/20 active:scale-95 transition"
+              >
+                +1 POINT (TEAM 2)
+              </button>
+            </div>
+
+          </div>
+
+          {/* Previous Sets Breakdown */}
+          <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
+            <h4 className="text-xs font-mono text-slate-400 uppercase">Set History Summary</h4>
+            <div className="flex space-x-4 text-xs font-mono">
+              {activeMatch.score1.map((s1, idx) => (
+                <div key={idx} className="bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
+                  <span className="text-slate-500 mr-2">Set {idx + 1}:</span>
+                  <span className="text-emerald-400 font-bold">{s1}</span>
+                  <span className="text-slate-600 mx-1">-</span>
+                  <span className="text-cyan-400 font-bold">{activeMatch.score2[idx] ?? 0}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      ) : (
+        <div className="text-center py-12 text-slate-500">No active matches found. Use the Matchmaker tab to start a session.</div>
+      )}
     </div>
   );
 }
+
 
 function TournamentView({ users }: any) {
   return (
@@ -1409,11 +2032,77 @@ function TournamentView({ users }: any) {
   );
 }
 
-function BillingView({ invoices }: any) {
+
+// 7. BILLING INVOICES
+function BillingView({ 
+  invoices, setInvoices, currentUser, showToast 
+}: { 
+  invoices: Invoice[]; setInvoices: React.Dispatch<React.SetStateAction<Invoice[]>>; currentUser: User | null; showToast: (msg: string) => void;
+}) {
+  const handleMarkAsPaid = (invId: string) => {
+    setInvoices(invoices.map(i => i.id === invId ? { ...i, status: 'Paid', paymentMethod: 'Stripe Mock Auto' } : i));
+    showToast(`Invoice ${invId} marked as PAID!`);
+  };
+
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-slate-300">
-      <h2 className="text-lg font-bold text-white mb-4">Billing & Invoices</h2>
-      <p className="text-xs text-slate-400">Total invoice records: {invoices.length}</p>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-white flex items-center space-x-2">
+            <CreditCard className="w-5 h-5 text-emerald-400" />
+            <span>Billing, Invoices & Membership Fees</span>
+          </h2>
+          <p className="text-xs text-slate-400">Manage court fees, monthly dues & automated payment collection</p>
+        </div>
+      </div>
+
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-300">
+            <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-mono border-b border-slate-800">
+              <tr>
+                <th className="p-3">Invoice Ref</th>
+                <th className="p-3">Member</th>
+                <th className="p-3">Description</th>
+                <th className="p-3">Amount</th>
+                <th className="p-3">Due Date</th>
+                <th className="p-3">Status</th>
+                <th className="p-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60">
+              {invoices.map(inv => (
+                <tr key={inv.id} className="hover:bg-slate-800/40">
+                  <td className="p-3 font-mono text-slate-400 font-semibold">{inv.id}</td>
+                  <td className="p-3 font-bold text-slate-200">{inv.playerName}</td>
+                  <td className="p-3 text-slate-300">{inv.description}</td>
+                  <td className="p-3 font-mono font-bold text-emerald-400">${inv.amount}.00</td>
+                  <td className="p-3 font-mono">{inv.dueDate}</td>
+                  <td className="p-3">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono ${
+                      inv.status === 'Paid' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
+                      inv.status === 'Pending' ? 'bg-amber-950 text-amber-400 border border-amber-800' :
+                      'bg-rose-950 text-rose-400 border border-rose-800'
+                    }`}>
+                      {inv.status}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right">
+                    {inv.status !== 'Paid' && (
+                      <button
+                        onClick={() => handleMarkAsPaid(inv.id)}
+                        className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 text-[11px] px-3 py-1 rounded-lg transition"
+                      >
+                        Collect Payment
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
