@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Activity, Trophy, Calendar, CreditCard, Zap, 
   CheckCircle2, BarChart3, ShieldCheck, LogOut, UserCheck, 
-  Shuffle, X, Lock, Phone, User as UserIcon, Key,
+  MessageSquare, Shuffle, X, Lock, Phone, User as UserIcon, Key,
   RefreshCw, Database, AlertCircle, Loader2, Edit3, Save, UserCog, Flame, ChevronRight, Users
 } from 'lucide-react';
 import { 
@@ -1000,7 +1000,7 @@ function DashboardView({
                   onClick={() => setActiveTab('matchmaker1')}
                   className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2 rounded-xl font-semibold text-sm transition flex items-center space-x-2"
                 >
-                  <Shuffle className="w-4 h-4 text-cyan-400" />
+                  <MessageSquare className="w-4 h-4 text-cyan-400" />
                   <span>Join Group</span>
                 </button>
               </>
