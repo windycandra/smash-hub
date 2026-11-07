@@ -478,12 +478,12 @@ export default function App() {
             <nav className="hidden md:flex items-center space-x-1">
               {[
                 { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-                { id: 'booking', label: 'Courts & Schedule', icon: Calendar },
+                { id: 'booking', label: 'Schedule', icon: Calendar },
                 { id: 'matchmaker', label: 'Matchmaker', icon: Shuffle },
                 { id: 'scoring', label: 'Live Scoring', icon: Activity },
-                { id: 'billing', label: 'Billing & Dues', icon: CreditCard },
-                { id: 'users', label: 'User Management', icon: UserCog },
-                { id: 'grading', label: 'Player Grading', icon: Trophy },
+                { id: 'billing', label: 'Billing', icon: CreditCard },
+                { id: 'users', label: 'User', icon: UserCog },
+                { id: 'grading', label: 'Grading', icon: Trophy },
               ].map(tab => {
                 const isAllowed = canAccessTab(tab.id);
                 const Icon = tab.icon;
@@ -950,7 +950,7 @@ function DashboardView({
               Badminton Operations & Analytics
             </h1>
             <p className="text-sm text-slate-400 max-w-xl">
-              Automated match pairing, live BWF scoring, court utilization monitoring & player ELO ratings.
+              Automated match pairing, live scoring, court utilization monitoring & player ratings.
             </p>
           </div>
 
@@ -1086,7 +1086,7 @@ function DashboardView({
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-white flex items-center space-x-2">
             <Activity className="w-4 h-4 text-emerald-400" />
-            <span>Courts Live Overview</span>
+            <span>Live Overview</span>
           </h3>
           {currentUser && (
             <button onClick={() => setActiveTab('scoring')} className="text-xs text-emerald-400 hover:underline flex items-center space-x-1">
@@ -1359,7 +1359,7 @@ function MatchMakerView({ users }: any) {
 function ScoringView({ matches }: any) {
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-slate-300">
-      <h2 className="text-lg font-bold text-white mb-4">Live BWF Scorekeeper</h2>
+      <h2 className="text-lg font-bold text-white mb-4">Live Scorekeeper</h2>
       <p className="text-xs text-slate-400">Matches available: {matches.length}</p>
     </div>
   );
