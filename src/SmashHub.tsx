@@ -1,11 +1,11 @@
-// v0.2.8 - SmashHub Pro Manager (Full Runnable & Validated)
+// v0.2.9 - SmashHub Pro Manager (Full Runnable & Validated Checkpoint)
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Activity, Trophy, Calendar, CreditCard, Zap, 
   CheckCircle2, BarChart3, ShieldCheck, LogOut, UserCheck, 
   Shuffle, X, Lock, Phone, User as UserIcon, Key,
-  RefreshCw, Database, AlertCircle, Loader2, Edit3, Save, UserCog, TrendingUp
+  RefreshCw, Database, AlertCircle, Loader2, Edit3, Save, UserCog, Flame, ChevronRight, Users
 } from 'lucide-react';
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, AreaChart, Area 
@@ -17,7 +17,7 @@ type SkillGrade = 'S (Pro)' | 'A (Advanced)' | 'B (Upper Inter)' | 'C (Intermedi
 
 interface User {
   id: string;
-  player_id: string; // Dynamic code: e.g. "AD001", "MB001", "SH001"
+  player_id: string;
   name: string;
   whatsapp: string;
   role: UserRole;
@@ -91,36 +91,51 @@ interface ViewProps {
 const SECRET_ADMIN_CODE = 'SMASH2026ADMIN';
 const SESSION_STORAGE_KEY = 'smashhub_session_user';
 
+const OCCUPANCY_DATA = [
+  { hour: '14:00', occupancy: 30 },
+  { hour: '15:00', occupancy: 45 },
+  { hour: '16:00', occupancy: 60 },
+  { hour: '17:00', occupancy: 85 },
+  { hour: '18:00', occupancy: 100 },
+  { hour: '19:00', occupancy: 95 },
+  { hour: '20:00', occupancy: 80 },
+  { hour: '21:00', occupancy: 50 },
+];
+
+const REVENUE_DATA = [
+  { day: 'Mon', revenue: 420 },
+  { day: 'Tue', revenue: 380 },
+  { day: 'Wed', revenue: 510 },
+  { day: 'Thu', revenue: 490 },
+  { day: 'Fri', revenue: 780 },
+  { day: 'Sat', revenue: 950 },
+  { day: 'Sun', revenue: 890 },
+];
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'booking' | 'scoring' | 'matchmaker' | 'grading' | 'billing' | 'users'>('dashboard');
   
-  // App Dynamic State
   const [users, setUsers] = useState<User[]>([]);
   const [courts, setCourts] = useState<Court[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
 
-  // Realtime Connection & Loading State
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [dbStatus, setDbStatus] = useState<'Connected' | 'Syncing' | 'Offline' | 'Empty'>('Syncing');
   const [, setLastSyncedAt] = useState<string>('');
 
-  // Auth Dialog state
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
   
-  // Login fields (ID or Name)
   const [loginCredential, setLoginCredential] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
-  // Forgot / Reset Password fields
   const [resetIdentifier, setResetIdentifier] = useState('');
   const [resetNewPassword, setResetNewPassword] = useState('');
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
 
-  // Registration fields
   const [regFullName, setRegFullName] = useState('');
   const [regWhatsapp, setRegWhatsapp] = useState('');
   const [regPassword, setRegPassword] = useState('');
@@ -128,10 +143,7 @@ export default function App() {
   const [regAdminCode, setRegAdminCode] = useState('');
   const [regRole, setRegRole] = useState<UserRole>('PLAYER');
 
-  // Registration Success Modal
   const [newlyRegisteredId, setNewlyRegisteredId] = useState<string | null>(null);
-
-  // Bottom Layer Toast Notifications
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const showToast = (text: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -139,7 +151,6 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 6000);
   };
 
-  // Restore Session on Mount
   useEffect(() => {
     try {
       const savedUser = localStorage.getItem(SESSION_STORAGE_KEY);
@@ -151,7 +162,6 @@ export default function App() {
     }
   }, []);
 
-  // Sync Current User with Session Storage
   const updateActiveSession = (user: User | null) => {
     setCurrentUser(user);
     if (user) {
@@ -161,7 +171,6 @@ export default function App() {
     }
   };
 
-  // Helper to normalize phone numbers for duplicate checking
   const normalizePhone = (phone: string): string => {
     let clean = phone.trim().replace(/\s+|-/g, '');
     if (clean.startsWith('+62')) {
@@ -172,9 +181,6 @@ export default function App() {
     return clean;
   };
 
-  // Helper to validate phone number length rules:
-  // Without +62: 10 to 12 digits
-  // With +62: 9 to 11 digits after +62 (e.g. +628123456789 -> 9 digits after +62)
   const validatePhoneNumber = (phone: string): { valid: boolean; error?: string } => {
     const trimmed = phone.trim();
     if (trimmed.startsWith('62')) {
@@ -197,7 +203,6 @@ export default function App() {
     return { valid: true };
   };
 
-  // Helper to normalize D1 SQL row to User interface
   const mapRawUserRow = (raw: any): User => ({
     id: raw.id || `u-${Date.now()}`,
     player_id: raw.player_id || raw.playerId || 'SH001',
@@ -213,7 +218,6 @@ export default function App() {
     wins: Number(raw.wins ?? 0),
   });
 
-  // --- REALTIME D1 DATABASE FETCH ENGINE ---
   const fetchD1Data = useCallback(async (silent = false) => {
     if (!silent) setDbStatus('Syncing');
     try {
@@ -255,14 +259,12 @@ export default function App() {
     }
   }, []);
 
-  // Poll Cloudflare D1 database every 10 seconds
   useEffect(() => {
     fetchD1Data();
     const interval = setInterval(() => fetchD1Data(true), 10000);
     return () => clearInterval(interval);
   }, [fetchD1Data]);
 
-  // Login Handler (Supports Code or Full Name)
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanInput = loginCredential.trim().toUpperCase();
@@ -283,7 +285,6 @@ export default function App() {
     }
   };
 
-  // Reset Password Handler
   const handleResetPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanIdent = resetIdentifier.trim().toUpperCase();
@@ -329,7 +330,6 @@ export default function App() {
     }
   };
 
-  // Dynamic Role-based Code Generator (AD001, MB001, SH001)
   const generateRoleCode = (role: UserRole, currentList: User[]): string => {
     const prefix = role === 'SUPER_ADMIN' ? 'AD' : role === 'MEMBER' ? 'MB' : 'SH';
     const roleCount = currentList.filter(u => u.role === role).length + 1;
@@ -337,7 +337,6 @@ export default function App() {
     return `${prefix}${numStr}`;
   };
 
-  // Registration Handler with D1 Storage & Resilient Local Persistence
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -346,14 +345,12 @@ export default function App() {
       return;
     }
 
-    // Phone number length validation (10-12 without +62; 9-11 with +62)
     const phoneCheck = validatePhoneNumber(regWhatsapp);
     if (!phoneCheck.valid) {
       showToast(phoneCheck.error || 'Invalid phone number format', 'error');
       return;
     }
 
-    // Double registration WhatsApp check
     const normalizedRegPhone = normalizePhone(regWhatsapp);
     const isDuplicatePhone = users.some(u => normalizePhone(u.whatsapp) === normalizedRegPhone);
     if (isDuplicatePhone) {
@@ -366,7 +363,6 @@ export default function App() {
       return;
     }
 
-    // Password minimal length is 6
     if (regPassword.length < 6) {
       showToast('⚠️ Password must be at least 6 characters long.', 'error');
       return;
@@ -377,7 +373,7 @@ export default function App() {
       if (regAdminCode.trim() === SECRET_ADMIN_CODE) {
         assignedRole = 'SUPER_ADMIN';
       } else {
-        showToast('⚠️ Invalid Refferal Code! Just leave this field blank.', 'error');
+        showToast('⚠️ Invalid Referral Code! Assigned standard account role.', 'error');
         return;
       }
     }
@@ -474,7 +470,7 @@ export default function App() {
                 <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-200 to-emerald-400 bg-clip-text text-transparent">
                   SmashHub<span className="text-emerald-400">.pro</span>
                 </span>
-                <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-semibold">BioDev</span>
+                <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-semibold">v0.2.9 Checkpoint</span>
               </div>
             </div>
 
@@ -533,7 +529,6 @@ export default function App() {
                   {dbStatus}
                 </span>
               </button>
-
               {currentUser ? (
                 <div className="flex items-center space-x-3 bg-slate-800/80 p-1.5 pl-3 rounded-full border border-slate-700/60">
                   <div className="text-right hidden sm:block">
@@ -566,10 +561,10 @@ export default function App() {
         </div>
       </header>
 
-      {/* --- BOTTOM FLOATING TOAST NOTIFICATION LAYER (z-[99999]) --- */}
+      {/* --- TOAST NOTIFICATIONS --- */}
       {toastMessage && (
         <div className="fixed bottom-5 left-1/2 -translate-x-1/2 sm:bottom-8 z-[99999] max-w-md w-full px-4 pointer-events-auto">
-          <div className={`p-4 rounded-2xl shadow-2xl backdrop-blur-2xl border-2 flex items-start space-x-3 transition-all animate-[bounce_3s_infinite] ${
+          <div className={`p-4 rounded-2xl shadow-2xl backdrop-blur-2xl border-2 flex items-start space-x-3 transition-all ${
             toastMessage.type === 'error'
               ? 'bg-rose-950/95 border-rose-500 text-rose-100 shadow-rose-950/80'
               : toastMessage.type === 'success'
@@ -933,120 +928,229 @@ export default function App() {
   );
 }
 
-// Subcomponents with Integrated Recharts Visualizations
-function DashboardView({ users, courts, matches, invoices, fetchD1Data }: ViewProps) {
-  const activeCourts = courts.filter((c: Court) => c.status === 'Occupied').length;
-  const pendingDuesTotal = invoices.filter((i: Invoice) => i.status === 'Pending').reduce((acc: number, curr: Invoice) => acc + curr.amount, 0);
-
-  // Dynamic Recharts Data derived from database state
-  const eloChartData = users.slice(0, 6).map((u: User) => ({
-    name: u.name.split(' ')[0],
-    elo: u.elo,
-  }));
-
-  const courtUsageData = [
-    { hour: '08:00', bookings: 2 },
-    { hour: '11:00', bookings: 5 },
-    { hour: '14:00', bookings: 3 },
-    { hour: '17:00', bookings: 8 },
-    { hour: '20:00', bookings: 12 },
-  ];
+// 1. DASHBOARD Subcomponents with Integrated Recharts Visualizations
+function DashboardView({ 
+  users, courts, matches, invoices, currentUser, setActiveTab, setIsAuthOpen
+}: ViewProps & { setActiveTab: any }) {
+  const activeCourts = courts.filter(c => c.status === 'Occupied').length;
+  const pendingDuesTotal = invoices.filter(i => i.status === 'Pending').reduce((acc, curr) => acc + curr.amount, 0);
+  const liveMatchesCount = matches.filter(m => m.status === 'Live').length;
 
   return (
     <div className="space-y-6">
+      {/* Top Banner */}
       <div className="relative overflow-hidden bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-900 border border-emerald-500/30 rounded-2xl p-6 shadow-2xl">
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div>
+          <div className="space-y-1">
             <span className="inline-flex items-center space-x-2 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-full text-xs text-emerald-400 font-medium">
               <Zap className="w-3.5 h-3.5" />
-              <span>Real-Time Operational Manager</span>
+              <span>Real-Time Club Dashboard</span>
             </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-2">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
               Badminton Operations & Analytics
             </h1>
+            <p className="text-sm text-slate-400 max-w-xl">
+              Automated match pairing, live BWF scoring, court utilization monitoring & player ELO ratings.
+            </p>
           </div>
-          <button onClick={() => fetchD1Data()} className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center space-x-1.5">
-            <RefreshCw className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Sync</span>
-          </button>
+
+          <div className="flex flex-wrap gap-2">
+            {currentUser ? (
+              <>
+                <button
+                  onClick={() => setActiveTab('booking')}
+                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-4 py-2 rounded-xl font-bold text-sm shadow-lg shadow-emerald-500/20 transition flex items-center space-x-2"
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Book Court</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('matchmaker')}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2 rounded-xl font-semibold text-sm transition flex items-center space-x-2"
+                >
+                  <Shuffle className="w-4 h-4 text-cyan-400" />
+                  <span>Auto Pair</span>
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setIsAuthOpen(true)}
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-5 py-2.5 rounded-xl font-extrabold text-sm shadow-lg shadow-emerald-500/20 transition flex items-center space-x-2"
+              >
+                <Lock className="w-4 h-4" />
+                <span>Sign In with Player ID to Unlock Full Access</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-          <p className="text-xs text-slate-400 uppercase font-semibold">Active Courts</p>
-          <h3 className="text-2xl font-bold text-white mt-1">{activeCourts} / {courts.length || 0}</h3>
+        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-400 uppercase font-semibold">Court Occupancy</p>
+            <h3 className="text-2xl font-bold text-white mt-1">{activeCourts} / {courts.length || 0} <span className="text-xs text-emerald-400 font-normal">Active</span></h3>
+            <p className="text-[11px] text-slate-500 mt-1">{courts.length > 0 ? Math.round((activeCourts/courts.length)*100) : 0}% peak utilization</p>
+          </div>
+          <div className="w-12 h-12 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center border border-emerald-500/20">
+            <Activity className="w-6 h-6" />
+          </div>
         </div>
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-          <p className="text-xs text-slate-400 uppercase font-semibold">Registered Players</p>
-          <h3 className="text-2xl font-bold text-white mt-1">{users.length}</h3>
+
+        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-400 uppercase font-semibold">Registered Players</p>
+            <h3 className="text-2xl font-bold text-white mt-1">{users.length} <span className="text-xs text-slate-400 font-normal">Members</span></h3>
+            <p className="text-[11px] text-emerald-400 mt-1">Realtime database query</p>
+          </div>
+          <div className="w-12 h-12 bg-indigo-500/10 text-indigo-400 rounded-xl flex items-center justify-center border border-indigo-500/20">
+            <Users className="w-6 h-6" />
+          </div>
         </div>
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-          <p className="text-xs text-slate-400 uppercase font-semibold">Live Matches</p>
-          <h3 className="text-2xl font-bold text-cyan-400 mt-1">{matches.filter((m: Match) => m.status === 'Live').length}</h3>
+
+        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-400 uppercase font-semibold">Live Matches</p>
+            <h3 className="text-2xl font-bold text-cyan-400 mt-1">{liveMatchesCount} <span className="text-xs text-slate-400 font-normal">Courts</span></h3>
+            <p className="text-[11px] text-slate-500 mt-1">Real-time BWF scoring</p>
+          </div>
+          <div className="w-12 h-12 bg-cyan-500/10 text-cyan-400 rounded-xl flex items-center justify-center border border-cyan-500/20">
+            <Flame className="w-6 h-6" />
+          </div>
         </div>
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-          <p className="text-xs text-slate-400 uppercase font-semibold">Pending Dues</p>
-          <h3 className="text-2xl font-bold text-amber-400 mt-1">${pendingDuesTotal}</h3>
+
+        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-400 uppercase font-semibold">Pending Dues</p>
+            <h3 className="text-2xl font-bold text-amber-400 mt-1">${pendingDuesTotal}</h3>
+            <p className="text-[11px] text-slate-500 mt-1">{invoices.filter(i=>i.status==='Pending').length} invoices awaiting</p>
+          </div>
+          <div className="w-12 h-12 bg-amber-500/10 text-amber-400 rounded-xl flex items-center justify-center border border-amber-500/20">
+            <CreditCard className="w-6 h-6" />
+          </div>
         </div>
       </div>
 
-      {/* --- RECHARTS VISUALIZATION SECTION --- */}
+      {/* Analytics Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Chart 1: ELO Rating Distribution */}
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
-              <Trophy className="w-4 h-4 text-emerald-400" />
-              <span>Top Player ELO Rankings</span>
-            </h3>
-            <span className="text-[10px] font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded">Live ELO</span>
+            <div>
+              <h3 className="text-sm font-bold text-white">Court Occupancy Trend</h3>
+              <p className="text-xs text-slate-400">Average court utilization by hour</p>
+            </div>
+            <span className="text-xs font-mono bg-slate-800 px-2 py-1 rounded text-slate-300">Peak 18:00 - 20:00</span>
           </div>
-          <div className="h-60 w-full pt-2">
+          <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={eloChartData.length > 0 ? eloChartData : [{ name: 'Player 1', elo: 1200 }]}>
-                <XAxis dataKey="name" stroke="#64748b" fontSize={11} tickLine={false} />
-                <YAxis stroke="#64748b" fontSize={11} tickLine={false} domain={[1000, 'auto']} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#fff' }}
-                  itemStyle={{ color: '#34d399' }}
-                />
-                <Bar dataKey="elo" fill="#10b981" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Chart 2: Peak Court Activity Trend */}
-        <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
-              <TrendingUp className="w-4 h-4 text-cyan-400" />
-              <span>Peak Court Booking Activity</span>
-            </h3>
-            <span className="text-[10px] font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded">Daily Hours</span>
-          </div>
-          <div className="h-60 w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={courtUsageData}>
-                <XAxis dataKey="hour" stroke="#64748b" fontSize={11} tickLine={false} />
-                <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#fff' }}
-                  itemStyle={{ color: '#22d3ee' }}
-                />
-                <Area type="monotone" dataKey="bookings" stroke="#22d3ee" fill="#06b6d4" fillOpacity={0.2} strokeWidth={2} />
+              <AreaChart data={OCCUPANCY_DATA}>
+                <defs>
+                  <linearGradient id="colorOcc" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="hour" stroke="#64748b" fontSize={12} tickLine={false} />
+                <YAxis stroke="#64748b" fontSize={12} tickLine={false} unit="%" />
+                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#fff' }} />
+                <Area type="monotone" dataKey="occupancy" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorOcc)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-white">Weekly Session Revenue</h3>
+              <p className="text-xs text-slate-400">Court fees & membership collection</p>
+            </div>
+            <span className="text-xs font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-1 rounded">Total $4,420</span>
+          </div>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={REVENUE_DATA}>
+                <XAxis dataKey="day" stroke="#64748b" fontSize={12} tickLine={false} />
+                <YAxis stroke="#64748b" fontSize={12} tickLine={false} tickFormatter={(v: number) => `$${v}`} />
+                <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', color: '#fff' }} />
+                <Bar dataKey="revenue" fill="#06b6d4" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Live Courts & Active Scoring Quick Status */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+            <Activity className="w-4 h-4 text-emerald-400" />
+            <span>Courts Live Overview</span>
+          </h3>
+          {currentUser && (
+            <button onClick={() => setActiveTab('scoring')} className="text-xs text-emerald-400 hover:underline flex items-center space-x-1">
+              <span>Open Scoring Console</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {courts.slice(0, 3).map(court => {
+            const activeMatch = matches.find(m => m.courtId === court.id && m.status === 'Live');
+            return (
+              <div key={court.id} className="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-xs text-slate-200">{court.name}</span>
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
+                    court.status === 'Occupied' 
+                      ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                      : court.status === 'Maintenance'
+                      ? 'bg-rose-950 text-rose-400 border border-rose-800'
+                      : 'bg-slate-800 text-slate-400'
+                  }`}>
+                    {court.status}
+                  </span>
+                </div>
+
+                {activeMatch ? (
+                  <div className="space-y-2 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-300 truncate max-w-[120px]">{activeMatch.team1.join(' / ')}</span>
+                      <span className="font-mono text-emerald-400 font-bold text-sm">
+                        {activeMatch.score1[activeMatch.currentSet - 1] ?? 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-300 truncate max-w-[120px]">{activeMatch.team2.join(' / ')}</span>
+                      <span className="font-mono text-cyan-400 font-bold text-sm">
+                        {activeMatch.score2[activeMatch.currentSet - 1] ?? 0}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-slate-500 pt-1 border-t border-slate-800 flex justify-between">
+                      <span>Set {activeMatch.currentSet} of 3</span>
+                      <span className="text-emerald-400 font-mono">LIVE SCORE</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-20 flex flex-col items-center justify-center text-slate-500 text-xs border border-dashed border-slate-800 rounded-lg">
+                    <span>Court Open</span>
+                    <button onClick={() => setActiveTab('booking')} className="mt-1 text-[11px] text-emerald-400 hover:underline">
+                      View Schedule
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
+// 2. USER MANAGEMENT
 function UserManagementView({ users, setUsers, showToast, fetchD1Data }: any) {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<User>>({});
@@ -1065,9 +1169,7 @@ function UserManagementView({ users, setUsers, showToast, fetchD1Data }: any) {
         body: JSON.stringify(updatedUser)
       });
 
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       setUsers((prev: User[]) => prev.map(u => u.id === id ? updatedUser : u));
       setEditingUserId(null);
