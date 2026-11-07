@@ -1008,7 +1008,7 @@ function DashboardView({
               </button>
       
               <button
-                onClick={() => window.open("https://whatsapp.com", "_blank", "noopener,noreferrer")}
+                onClick={() => window.open("https://bit.ly/4fk19yP", "_blank", "noopener,noreferrer")}
                 className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2 rounded-xl font-semibold text-sm transition flex items-center space-x-2"
               >
                 <MessageSquare className="w-4 h-4 text-cyan-400" />
