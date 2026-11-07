@@ -83,7 +83,7 @@ interface ViewProps {
   matches: Match[];
   invoices: Invoice[];
   currentUser: User | null;
-  setActiveTab: (tab: 'dashboard' | 'booking' | 'scoring' | 'matchmaker' | 'grading' | 'billing' | 'users') => void;
+  setActiveTab: (tab: 'dashboard' | 'booking' | 'scoring' | 'matchmaker' | 'billing' | 'users') => void;
   setIsAuthOpen: (open: boolean) => void;
   fetchD1Data: (silent?: boolean) => void;
 }
@@ -114,7 +114,7 @@ const REVENUE_DATA = [
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'booking' | 'scoring' | 'matchmaker' | 'grading' | 'billing' | 'users'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'booking' | 'scoring' | 'matchmaker' | 'billing' | 'users'>('dashboard');
   
   const [users, setUsers] = useState<User[]>([]);
   const [courts, setCourts] = useState<Court[]>([]);
@@ -448,7 +448,7 @@ export default function App() {
   };
 
   const canAccessTab = (tabId: string) => {
-    if (tabId === 'users' || tabId === 'matchmaker' || tabId === 'grading') return currentUser?.role === 'SUPER_ADMIN';
+    if (tabId === 'users' || tabId === 'matchmaker') return currentUser?.role === 'SUPER_ADMIN';
     if (currentUser) return true;
     return tabId === 'dashboard' || tabId === 'booking';
   };
@@ -483,7 +483,6 @@ export default function App() {
                 { id: 'scoring', label: 'Live Scoring', icon: Activity },
                 { id: 'billing', label: 'Billing', icon: CreditCard },
                 { id: 'users', label: 'User', icon: UserCog },
-                { id: 'grading', label: 'Grading', icon: Trophy },
               ].map(tab => {
                 const isAllowed = canAccessTab(tab.id);
                 const Icon = tab.icon;
@@ -570,7 +569,7 @@ export default function App() {
             { id: 'scoring', label: 'Live Scoring', icon: Activity },
             { id: 'billing', label: 'Billing', icon: CreditCard },
             { id: 'users', label: 'User', icon: UserCog },
-            { id: 'grading', label: 'Grading', icon: Trophy },
+            { id: 'Tournament', label: 'Tournament', icon: Trophy },
           ].map(tab => {
             const isAllowed = canAccessTab(tab.id);
             const Icon = tab.icon;
@@ -681,8 +680,8 @@ export default function App() {
                 showToast={showToast}
               />
             )}
-            {activeTab === 'grading' && currentUser && (
-              <GradingView 
+            {activeTab === 'Tournament' && currentUser && (
+              <TournamentView 
                 users={users} 
                 setUsers={setUsers}
                 currentUser={currentUser}
@@ -1398,7 +1397,7 @@ function ScoringView({ matches }: any) {
   );
 }
 
-function GradingView({ users }: any) {
+function TournamentView({ users }: any) {
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-slate-300">
       <h2 className="text-lg font-bold text-white mb-4">Player Skill Standings</h2>
