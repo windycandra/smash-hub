@@ -998,6 +998,7 @@ function DashboardView({
                 </button>
               </>
             ) : (
+              <>
               <button
                 onClick={() => setIsAuthOpen(true)}
                 className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-5 py-2.5 rounded-xl font-extrabold text-sm shadow-lg shadow-emerald-500/20 transition flex items-center space-x-2"
@@ -1005,13 +1006,15 @@ function DashboardView({
                 <Lock className="w-4 h-4" />
                 <span>Sign In to Unlock Full Access</span>
               </button>
+      
               <button
-                onClick={() => window.open('"https://whatsapp.com", "_blank", "noopener,noreferrer")}
+                onClick={() => window.open("https://whatsapp.com", "_blank", "noopener,noreferrer")}
                 className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-4 py-2 rounded-xl font-semibold text-sm transition flex items-center space-x-2"
               >
                 <MessageSquare className="w-4 h-4 text-cyan-400" />
                 <span>Join Group</span>
               </button>
+              </>
             )}
           </div>
         </div>
